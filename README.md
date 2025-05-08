@@ -61,7 +61,4 @@
 **File Splitter Pro**  
 Build: 1.2  
 Last Updated: May 5, 2025  
-
----
-
-© 2025 Jack Worthen
+Developed by Jack Worthen

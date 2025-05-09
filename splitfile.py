@@ -15,7 +15,7 @@ class FileSplitterApp:
             self.root.iconbitmap(default=icon_path)
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
-        self.root.geometry("470x450")
+        self.root.geometry("475x450")
         self.root.resizable(False, False)
 
         self.input_file = tk.StringVar()

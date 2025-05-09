@@ -8,7 +8,7 @@ import webbrowser
 class FileSplitterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("File Splitter")
+        self.root.title("File Splitter Pro")
 
         try:
             icon_path = os.path.join(os.path.dirname(__file__), "filesplit_icon.ico")

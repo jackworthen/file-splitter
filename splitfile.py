@@ -15,7 +15,7 @@ class FileSplitterApp:
             self.root.iconbitmap(default=icon_path)
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
-        self.root.geometry("470x400")
+        self.root.geometry("470x450")
         self.root.resizable(False, False)
 
         self.input_file = tk.StringVar()
@@ -24,6 +24,10 @@ class FileSplitterApp:
         self.file_type = tk.StringVar(value=".csv")
         self.output_dir = tk.StringVar()
         self.split_mode = tk.StringVar(value="size")
+        self.use_custom_delim = tk.BooleanVar(value=False)
+        self.custom_delimiter = tk.StringVar(value="")
+        self.detected_delimiter = tk.StringVar(value="")
+
 
         self.create_menu()
         self.create_widgets()
@@ -68,6 +72,26 @@ class FileSplitterApp:
         self.row_entry.grid(row=0, column=3, sticky="w", padx=(5, 0))
         ttk.Label(settings_frame, text="Output file type:").grid(row=1, column=0, pady=(10, 0), sticky="w")
         ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat"], width=10).grid(row=1, column=1, pady=(10, 0), sticky="w")
+        # Custom Delimiter
+        self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", variable=self.use_custom_delim, command=self.toggle_delim_fields)
+        self.delim_checkbox.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w")
+
+        self.delim_label = ttk.Label(settings_frame, text="Current Delimiter:")
+        self.delim_label.grid(row=3, column=0, sticky="w")
+        self.delim_display = ttk.Label(settings_frame, textvariable=self.detected_delimiter)
+        self.delim_display.grid(row=3, column=1, sticky="w")
+
+        self.set_delim_label = ttk.Label(settings_frame, text="New Delimiter:")
+        self.set_delim_label.grid(row=4, column=0, sticky="w")
+        self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5)
+        self.set_delim_entry.grid(row=4, column=1, sticky="w")
+
+        # Initially hide
+        self.delim_label.grid_remove()
+        self.delim_display.grid_remove()
+        self.set_delim_label.grid_remove()
+        self.set_delim_entry.grid_remove()
+
 
         self.button_start = ttk.Button(self.root, text="Start Splitting", width=25, command=self.start_threaded_split)
         self.button_start.grid(row=3, column=0, columnspan=3, pady=(15, 5))
@@ -81,6 +105,17 @@ class FileSplitterApp:
             default_out = os.path.join(os.path.dirname(path), 'split_files')
             self.output_dir.set(default_out.replace('\\', '/'))
             self.input_file.set(path)
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    sample = f.read(2048)
+                    sniffer = csv.Sniffer()
+                    dialect = sniffer.sniff(sample)
+                    self.detected_delimiter.set(dialect.delimiter)
+            except Exception as e:
+                self.detected_delimiter.set(',')
+                print(f"Could not detect delimiter: {e}")
+            if self.use_custom_delim.get():
+                self.toggle_delim_fields()
 
     def select_output_directory(self):
         path = filedialog.askdirectory()
@@ -94,6 +129,29 @@ class FileSplitterApp:
         else:
             self.size_entry.config(state="disabled")
             self.row_entry.config(state="normal")
+
+
+    def toggle_delim_fields(self):
+        if self.use_custom_delim.get() and self.input_file.get():
+            self.delim_label.grid()
+            self.delim_display.grid()
+            self.set_delim_label.grid()
+            self.set_delim_entry.grid()
+        else:
+            self.delim_label.grid_remove()
+            self.delim_display.grid_remove()
+            self.set_delim_label.grid_remove()
+            self.set_delim_entry.grid_remove()
+        if self.use_custom_delim.get():
+            self.delim_label.grid()
+            self.delim_display.grid()
+            self.set_delim_label.grid()
+            self.set_delim_entry.grid()
+        else:
+            self.delim_label.grid_remove()
+            self.delim_display.grid_remove()
+            self.set_delim_label.grid_remove()
+            self.set_delim_entry.grid_remove()
 
     def start_threaded_split(self):
         file_path = self.input_file.get()
@@ -120,10 +178,12 @@ class FileSplitterApp:
         self.progress.start()
         self.root.update_idletasks()
 
-        thread = threading.Thread(target=self.split_file, args=(file_path, out_dir, mode, value, extension))
+        delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
+        thread = threading.Thread(target=self.split_file, args=(file_path, out_dir, mode, value, extension, delim))
         thread.start()
 
-    def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension):
+    
+    def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension, custom_delimiter):
         try:
             os.makedirs(output_dir, exist_ok=True)
             part_num = 1
@@ -132,12 +192,13 @@ class FileSplitterApp:
             max_rows = size_or_rows if mode == "rows" else None
 
             with open(input_file, 'r', newline='', encoding='utf-8') as infile:
-                reader = csv.reader(infile)
+                detected_delimiter = self.detected_delimiter.get() or ','
+                reader = csv.reader(infile, delimiter=detected_delimiter)
                 header = next(reader)
 
                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                 outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                writer = csv.writer(outfile)
+                writer = csv.writer(outfile, delimiter=custom_delimiter)
                 writer.writerow(header)
                 current_size = outfile.tell()
                 current_rows = 0
@@ -152,7 +213,7 @@ class FileSplitterApp:
                         part_num += 1
                         output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                         outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                        writer = csv.writer(outfile)
+                        writer = csv.writer(outfile, delimiter=custom_delimiter)
                         writer.writerow(header)
                         current_size = outfile.tell()
                         current_rows = 0
@@ -168,6 +229,7 @@ class FileSplitterApp:
             self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}"))
         finally:
             self.root.after(0, self.reset_ui)
+
 
     def show_success(self, parts, directory):
         messagebox.showinfo("Success", f"File split into {parts} parts and saved in: {directory}")

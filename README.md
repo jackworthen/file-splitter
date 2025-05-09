@@ -40,6 +40,12 @@
 
 ---
 
+##  Custom Delimiter
+
+- ✅ You can now choose a custom delimiter to replace to current delimiter in the output files.
+
+---
+
 ## 🎬 Getting Started
 
 - ✅ Fill out the required fields.

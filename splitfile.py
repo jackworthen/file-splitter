@@ -78,6 +78,8 @@ class FileSplitterApp:
     def select_file(self):
         path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"), ("DAT files", "*.dat"), ("TXT files", "*.txt"), ("All files", "*.*")])
         if path:
+            default_out = os.path.join(os.path.dirname(path), 'split_files')
+            self.output_dir.set(default_out.replace('\\', '/'))
             self.input_file.set(path)
 
     def select_output_directory(self):
@@ -174,7 +176,6 @@ class FileSplitterApp:
         self.button_start.config(state=tk.NORMAL)
         self.progress.stop()
         self.root.update_idletasks()
-
 
     def show_about(self):
         messagebox.showinfo("About", "File Splitter Pro\nVersion: 1.2\nLast Updated: 5/5/2025\n\n© 2025 Jack Worthen")

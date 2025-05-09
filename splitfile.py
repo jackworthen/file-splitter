@@ -92,7 +92,6 @@ class FileSplitterApp:
         self.set_delim_label.grid_remove()
         self.set_delim_entry.grid_remove()
 
-
         self.button_start = ttk.Button(self.root, text="Start Splitting", width=25, command=self.start_threaded_split)
         self.button_start.grid(row=3, column=0, columnspan=3, pady=(15, 5))
 

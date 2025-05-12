@@ -72,6 +72,7 @@ class FileSplitterApp:
         self.row_entry.grid(row=0, column=3, sticky="w", padx=(5, 0))
         ttk.Label(settings_frame, text="Output file type:").grid(row=1, column=0, pady=(10, 0), sticky="w")
         ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat"], width=10).grid(row=1, column=1, pady=(10, 0), sticky="w")
+        
         # Custom Delimiter
         self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", variable=self.use_custom_delim, command=self.toggle_delim_fields)
         self.delim_checkbox.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w")
@@ -84,6 +85,7 @@ class FileSplitterApp:
         self.set_delim_label = ttk.Label(settings_frame, text="New Delimiter:")
         self.set_delim_label.grid(row=4, column=0, sticky="w")
         self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5)
+        self.set_delim_entry.config(validate="key", validatecommand=(self.root.register(self.validate_delimiter), "%P"))
         self.set_delim_entry.grid(row=4, column=1, sticky="w")
 
         # Initially hide
@@ -128,7 +130,6 @@ class FileSplitterApp:
         else:
             self.size_entry.config(state="disabled")
             self.row_entry.config(state="normal")
-
 
     def toggle_delim_fields(self):
         if self.use_custom_delim.get() and self.input_file.get():
@@ -180,8 +181,7 @@ class FileSplitterApp:
         delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
         thread = threading.Thread(target=self.split_file, args=(file_path, out_dir, mode, value, extension, delim))
         thread.start()
-
-    
+  
     def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension, custom_delimiter):
         try:
             os.makedirs(output_dir, exist_ok=True)
@@ -229,7 +229,6 @@ class FileSplitterApp:
         finally:
             self.root.after(0, self.reset_ui)
 
-
     def show_success(self, parts, directory):
         messagebox.showinfo("Success", f"File split into {parts} parts and saved in: {directory}")
 
@@ -239,7 +238,12 @@ class FileSplitterApp:
         self.root.update_idletasks()
 
     def show_about(self):
-        messagebox.showinfo("About", "File Splitter Pro\nVersion: 1.2\nLast Updated: 5/5/2025\n\n© 2025 Jack Worthen")
+        messagebox.showinfo("About", "File Splitter Pro\nVersion: 1.3\nLast Updated: 5/5/2025\n\nDeveloped by Jack Worthen")
+
+
+    def validate_delimiter(self, text):
+        # Allow only empty or single printable characters
+        return len(text) <= 1 and (text == '' or text.isprintable())
 
 if __name__ == "__main__":
     root = tk.Tk()

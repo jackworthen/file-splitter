@@ -15,7 +15,7 @@ class FileSplitterApp:
             self.root.iconbitmap(default=icon_path)
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
-        self.root.geometry("475x450")
+        self.root.geometry("475x485")
         self.root.resizable(False, False)
 
         self.input_file = tk.StringVar()
@@ -27,6 +27,7 @@ class FileSplitterApp:
         self.use_custom_delim = tk.BooleanVar(value=False)
         self.custom_delimiter = tk.StringVar(value="")
         self.detected_delimiter = tk.StringVar(value="")
+        self.open_dir_after_split = tk.BooleanVar(value=False)
 
 
         self.create_menu()
@@ -61,6 +62,9 @@ class FileSplitterApp:
         output_frame.grid(row=1, column=0, columnspan=3, padx=15, pady=10, sticky="ew")
         ttk.Entry(output_frame, textvariable=self.output_dir, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
         ttk.Button(output_frame, text="Browse", command=self.select_output_directory).grid(row=0, column=1)
+
+        # New checkbox to open output directory after split
+        ttk.Checkbutton(output_frame, text="Open output directory when complete", variable=self.open_dir_after_split).grid(row=1, column=0, columnspan=2, pady=5, sticky="w")
 
         settings_frame = ttk.LabelFrame(self.root, text="Split Settings", padding=10)
         settings_frame.grid(row=2, column=0, columnspan=3, padx=15, pady=10, sticky="ew")
@@ -231,6 +235,17 @@ class FileSplitterApp:
 
     def show_success(self, parts, directory):
         messagebox.showinfo("Success", f"File split into {parts} parts and saved in: {directory}")
+
+        if self.open_dir_after_split.get():
+            try:
+                os.startfile(directory)
+            except AttributeError:
+                import subprocess
+                import platform
+                if platform.system() == "Darwin":
+                    subprocess.call(["open", directory])
+                elif platform.system() == "Linux":
+                    subprocess.call(["xdg-open", directory])
 
     def reset_ui(self):
         self.button_start.config(state=tk.NORMAL)

@@ -21,7 +21,7 @@
 ## 📤 Output Settings
 
 - ✅ Choose where the split files will go.
-- ✅ If left blank, we create a happy little folder named `split_files` next to your original file.
+- ✅ By default, it will create a folder called `split_files` next to the original file.
 - ✅ Use the Open output directory checkbox to display the split files once the process is complete. 
 
 ---

@@ -272,7 +272,7 @@ class FileSplitterApp:
         self.root.update_idletasks()
 
     def show_about(self):
-        messagebox.showinfo("About", "File Splitter Pro\nVersion: 1.3\nLast Updated: 5/5/2025\n\nDeveloped by Jack Worthen")
+        messagebox.showinfo("About", "File Splitter Pro\nVersion: 1.3\nLast Updated: 5/13/2025\n\nDeveloped by Jack Worthen")
 
     def validate_delimiter(self, text):
         return len(text) <= 1 and (text == '' or text.isprintable())

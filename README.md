@@ -24,6 +24,8 @@
 - ✅ By default, it will create a folder called `split_files` next to the original file.
 - ✅ Use the Open output directory checkbox to display the split files once the process is complete. 
 
+- 📋 Enable Logging (enabled by default) will generate a log file and validate row counts so you can split files with confidence!
+- 📂 Open Output Directory, when selected, will open a window showing the split files once the process is complete.
 ---
 
 ## ⚙️ Split Modes

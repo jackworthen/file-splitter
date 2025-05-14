@@ -255,7 +255,7 @@ class FileSplitterApp:
             self.root.after(0, self.reset_ui)
 
     def show_success(self, parts, directory):
-        messagebox.showinfo("Success", f"File split into {parts} parts and saved in: {directory}")
+        messagebox.showinfo("Success", f"File split into {parts} parts and saved in:\n{directory}")
         if self.open_dir_after_split.get():
             try:
                 os.startfile(directory)

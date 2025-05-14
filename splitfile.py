@@ -227,8 +227,8 @@ class FileSplitterApp:
                 input_file_size = os.path.getsize(input_file)
 
                 with open(log_path, 'a', encoding='utf-8') as log_file:
-                    log_file.write(f"\n============================================================\n")
-                    log_file.write(f"File Split Log\n")
+                    log_file.write(f"\n")
+                    log_file.write(f"File Splitter Log\n")
                     log_file.write(f"Timestamp: {timestamp}\n")
                     log_file.write(f"Input File: {input_file}\n")
                     log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
@@ -242,11 +242,12 @@ class FileSplitterApp:
                         log_file.write(f"Part {i+1}: {row_count} data rows, {part_size:,} bytes\n")
 
                     log_file.write(f"\nTotal Data Rows in Split Files: {output_data_row_count:,}\n")
+                    log_file.write(f"Delimiter Used: '{custom_delimiter}'\n") 
                     if input_data_row_count == output_data_row_count:
                         log_file.write("Validation: PASS ✅\n")
                     else:
                         log_file.write("Validation: FAIL ❌\n")
-
+                    log_file.write(f"\n============================================================\n")
             self.root.after(0, lambda: self.show_success(part_num, output_dir))
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}"))

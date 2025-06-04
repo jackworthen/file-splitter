@@ -45,15 +45,12 @@ class FileSplitterApp:
 
         help_menu = Menu(menubar, tearoff=0)
         help_menu.add_command(label="📘 Documentation", command=self.open_help)
-        help_menu.add_separator()
-        help_menu.add_command(label="🛈 About", command=self.show_about)
         menubar.add_cascade(label="Help", menu=help_menu)
 
         self.root.config(menu=menubar)
 
     def open_help(self):
-        help_path = os.path.join(os.path.dirname(__file__), "help.html")
-        webbrowser.open(f"file://{help_path}")
+        webbrowser.open("https://github.com/jackworthen/file-splitter")
 
     def create_widgets(self):
         file_frame = ttk.LabelFrame(self.root, text="File Selection", padding=10)
@@ -271,9 +268,6 @@ class FileSplitterApp:
         self.button_start.config(state=tk.NORMAL)
         self.progress.stop()
         self.root.update_idletasks()
-
-    def show_about(self):
-        messagebox.showinfo("About", "File Splitter Pro\nVersion: 1.3\nLast Updated: 5/13/2025\n\nDeveloped by Jack Worthen")
 
     def validate_delimiter(self, text):
         return len(text) <= 1 and (text == '' or text.isprintable())

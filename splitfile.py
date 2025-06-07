@@ -16,9 +16,14 @@ class FileSplitterApp:
             self.root.iconbitmap(default=icon_path)
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
-        self.root.geometry("475x520")
+        
+        self.root.geometry("450x680")
         self.root.resizable(False, False)
+        
+        # Configure style
+        self.setup_styles()
 
+        # Variables
         self.input_file = tk.StringVar()
         self.max_size = tk.StringVar()
         self.max_rows = tk.StringVar()
@@ -31,10 +36,39 @@ class FileSplitterApp:
         self.open_dir_after_split = tk.BooleanVar(value=False)
         self.create_log = tk.BooleanVar(value=True)
 
+        # Progress tracking
+        self.cancel_event = threading.Event()
+        self.is_running = False
+        self.start_time = 0
+        
+        # Stats variables
+        self.current_file = tk.StringVar(value="")
+        self.rows_processed = tk.StringVar(value="")
+        self.total_rows = tk.StringVar(value="")
+        self.progress_percentage = tk.StringVar(value="")
+
         self.create_menu()
         self.create_widgets()
         self.input_file.trace_add("write", self.on_input_file_change)
 
+    def setup_styles(self):
+        """Configure clean styling for the application"""
+        style = ttk.Style()
+        
+        # Configure stats styling
+        style.configure("Stats.TLabel", 
+                       font=("Segoe UI", 9),
+                       foreground="#34495e")
+        style.configure("StatsValue.TLabel", 
+                       font=("Segoe UI", 10, "bold"),
+                       foreground="#27ae60",
+                       background="#ecf0f1",
+                       relief="flat",
+                       borderwidth=1)
+        style.configure("StatsFrame.TFrame",
+                       background="#f8f9fa",
+                       relief="solid",
+                       borderwidth=1)
 
     def create_menu(self):
         menubar = Menu(self.root)
@@ -53,31 +87,50 @@ class FileSplitterApp:
         webbrowser.open("https://github.com/jackworthen/file-splitter")
 
     def create_widgets(self):
-        file_frame = ttk.LabelFrame(self.root, text="File Selection", padding=10)
-        file_frame.grid(row=0, column=0, columnspan=3, padx=15, pady=10, sticky="ew")
-        ttk.Entry(file_frame, textvariable=self.input_file, width=50).grid(row=1, column=0, padx=(0, 10), pady=5, sticky="ew")
-        ttk.Button(file_frame, text="Browse", command=self.select_file).grid(row=1, column=1, pady=5)
+        main_frame = ttk.Frame(self.root, padding="15")
+        main_frame.grid(row=0, column=0, sticky="nsew")
 
-        output_frame = ttk.LabelFrame(self.root, text="Output Directory", padding=10)
-        output_frame.grid(row=1, column=0, columnspan=3, padx=15, pady=10, sticky="ew")
+        # File Selection Section
+        file_frame = ttk.LabelFrame(main_frame, text="File Selection", padding=10)
+        file_frame.grid(row=0, column=0, columnspan=3, pady=(0, 10), sticky="ew")
+        
+        ttk.Entry(file_frame, textvariable=self.input_file, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
+        ttk.Button(file_frame, text="Browse", command=self.select_file).grid(row=0, column=1, pady=5)
+        file_frame.columnconfigure(0, weight=1)
+
+        # Output Directory Section
+        output_frame = ttk.LabelFrame(main_frame, text="Output Directory", padding=10)
+        output_frame.grid(row=1, column=0, columnspan=3, pady=(0, 10), sticky="ew")
+        
         ttk.Entry(output_frame, textvariable=self.output_dir, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
-        ttk.Button(output_frame, text="Browse", command=self.select_output_directory).grid(row=0, column=1)
-
+        ttk.Button(output_frame, text="Browse", command=self.select_output_directory).grid(row=0, column=1, pady=5)
+        
         ttk.Checkbutton(output_frame, text="Enable Logging", variable=self.create_log).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
-        ttk.Checkbutton(output_frame, text="Open Output Directory", variable=self.open_dir_after_split).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
+        ttk.Checkbutton(output_frame, text="Open Directory After Split", variable=self.open_dir_after_split).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
+        output_frame.columnconfigure(0, weight=1)
 
-        settings_frame = ttk.LabelFrame(self.root, text="Split Settings", padding=10)
-        settings_frame.grid(row=2, column=0, columnspan=3, padx=15, pady=10, sticky="ew")
-        ttk.Radiobutton(settings_frame, text="Split by Size (MB):", variable=self.split_mode, value="size", command=self.toggle_mode).grid(row=0, column=0, sticky="w")
+        # Split Settings Section
+        settings_frame = ttk.LabelFrame(main_frame, text="Split Settings", padding=10)
+        settings_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="ew")
+        
+        # Split mode selection
+        ttk.Radiobutton(settings_frame, text="Split by Size (MB):", variable=self.split_mode, 
+                       value="size", command=self.toggle_mode).grid(row=0, column=0, sticky="w")
         self.size_entry = ttk.Entry(settings_frame, textvariable=self.max_size, width=10)
         self.size_entry.grid(row=0, column=1, sticky="w", padx=(5, 20))
-        ttk.Radiobutton(settings_frame, text="Split by Rows:", variable=self.split_mode, value="rows", command=self.toggle_mode).grid(row=0, column=2, sticky="w")
+        
+        ttk.Radiobutton(settings_frame, text="Split by Rows:", variable=self.split_mode, 
+                       value="rows", command=self.toggle_mode).grid(row=0, column=2, sticky="w")
         self.row_entry = ttk.Entry(settings_frame, textvariable=self.max_rows, width=10, state="disabled")
         self.row_entry.grid(row=0, column=3, sticky="w", padx=(5, 0))
+        
+        # File type selection
         ttk.Label(settings_frame, text="Output file type:").grid(row=1, column=0, pady=(10, 0), sticky="w")
         ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat"], width=10).grid(row=1, column=1, pady=(10, 0), sticky="w")
 
-        self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", variable=self.use_custom_delim, command=self.toggle_delim_fields)
+        # Delimiter settings
+        self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", 
+                                            variable=self.use_custom_delim, command=self.toggle_delim_fields)
         self.delim_checkbox.state(["disabled"])
         self.delim_checkbox.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w")
 
@@ -85,25 +138,77 @@ class FileSplitterApp:
         self.delim_display = ttk.Label(settings_frame, textvariable=self.detected_delimiter)
         self.set_delim_label = ttk.Label(settings_frame, text="New Delimiter:")
         self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5)
-        self.set_delim_entry.config(validate="key", validatecommand=(self.root.register(self.validate_delimiter), "%P"))
+        self.set_delim_entry.config(validate="key", 
+                                  validatecommand=(self.root.register(self.validate_delimiter), "%P"))
 
         self.delim_label.grid(row=3, column=0, sticky="w")
         self.delim_display.grid(row=3, column=1, sticky="w")
         self.set_delim_label.grid(row=4, column=0, sticky="w")
         self.set_delim_entry.grid(row=4, column=1, sticky="w")
+        
+        # Initially hide delimiter fields
         self.delim_label.grid_remove()
         self.delim_display.grid_remove()
         self.set_delim_label.grid_remove()
         self.set_delim_entry.grid_remove()
+        settings_frame.columnconfigure(0, weight=1)
 
-        self.button_start = ttk.Button(self.root, text="Start Splitting", width=25, command=self.start_threaded_split)
-        self.button_start.grid(row=3, column=0, columnspan=3, pady=(15, 5))
+        # Progress Section
+        progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding=10)
+        progress_frame.grid(row=3, column=0, columnspan=3, pady=(0, 10), sticky="ew")
+        
+        # Progress bar with percentage
+        self.progress = ttk.Progressbar(progress_frame, mode='determinate')
+        self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=(0, 10))
+        
+        self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_percentage, width=8)
+        self.progress_label.grid(row=0, column=1, pady=(0, 10))
+        
+        # Stats display
+        stats_frame = ttk.Frame(progress_frame, style="StatsFrame.TFrame", padding=10)
+        stats_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+        
+        # Create a vertical layout for stats
+        stats_container = ttk.Frame(stats_frame)
+        stats_container.grid(row=0, column=0, sticky="ew")
+        stats_frame.columnconfigure(0, weight=1)
+        stats_container.columnconfigure(1, weight=1)
+        
+        # Total Rows
+        ttk.Label(stats_container, text="Total Rows:", style="Stats.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
+        total_rows_label = ttk.Label(stats_container, textvariable=self.total_rows, style="StatsValue.TLabel", width=15, anchor="w")
+        total_rows_label.grid(row=0, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
+        
+        # Current File  
+        ttk.Label(stats_container, text="Current File:", style="Stats.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
+        current_file_label = ttk.Label(stats_container, textvariable=self.current_file, style="StatsValue.TLabel", width=15, anchor="w")
+        current_file_label.grid(row=1, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
+        
+        # Rows Processed
+        ttk.Label(stats_container, text="Rows Processed:", style="Stats.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 5))
+        rows_processed_label = ttk.Label(stats_container, textvariable=self.rows_processed, style="StatsValue.TLabel", width=15, anchor="w")
+        rows_processed_label.grid(row=2, column=1, sticky="ew")
+        
+        progress_frame.columnconfigure(0, weight=1)
 
-        self.progress = ttk.Progressbar(self.root, mode='indeterminate')
-        self.progress.grid(row=4, column=0, columnspan=3, padx=15, pady=(5, 10), sticky="ew")
+        # Control Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=4, column=0, columnspan=3, pady=(0, 10))
+        
+        self.button_start = ttk.Button(button_frame, text="Run", command=self.start_threaded_split)
+        self.button_start.grid(row=0, column=0, padx=(0, 10))
+        
+        self.button_cancel = ttk.Button(button_frame, text="Cancel", command=self.cancel_operation, state="disabled")
+        self.button_cancel.grid(row=0, column=1)
+
+        main_frame.columnconfigure(0, weight=1)
 
     def select_file(self):
-        path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"), ("DAT files", "*.dat"), ("TXT files", "*.txt"), ("All files", "*.*")])
+        path = filedialog.askopenfilename(
+            title="Select File to Split",
+            filetypes=[("CSV files", "*.csv"), ("DAT files", "*.dat"), 
+                      ("TXT files", "*.txt"), ("All files", "*.*")]
+        )
         if path:
             default_out = os.path.join(os.path.dirname(path), 'split_files')
             self.output_dir.set(default_out.replace('\\', '/'))
@@ -122,7 +227,7 @@ class FileSplitterApp:
                 self.toggle_delim_fields()
 
     def select_output_directory(self):
-        path = filedialog.askdirectory()
+        path = filedialog.askdirectory(title="Select Output Directory")
         if path:
             self.output_dir.set(path)
 
@@ -146,7 +251,7 @@ class FileSplitterApp:
         mode = self.split_mode.get()
 
         if not file_path:
-            messagebox.showwarning("Warning", "Select a file to split.")
+            messagebox.showwarning("Warning", "Please select a file to split.")
             return
 
         try:
@@ -154,23 +259,74 @@ class FileSplitterApp:
             if value <= 0:
                 raise ValueError
         except ValueError:
-            messagebox.showwarning("Warning", "Enter a valid number for size or rows.")
+            messagebox.showwarning("Warning", "Please enter a valid positive number for size or rows.")
             return
 
         if not out_dir:
             out_dir = os.path.join(os.path.dirname(file_path), "split_files")
 
+        # Reset progress tracking
+        self.cancel_event.clear()
+        self.is_running = True
+        self.start_time = time.time()
+        
+        # Update UI state
         self.button_start.config(state=tk.DISABLED)
-        self.progress.start()
-        self.root.update_idletasks()
+        self.button_cancel.config(state=tk.NORMAL)
+        self.progress['value'] = 0
+        self.progress_percentage.set("0%")
+        self.total_rows.set("")
+        self.current_file.set("Initializing...")
+        self.rows_processed.set("0")
 
         delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
-        thread = threading.Thread(target=self.split_file, args=(file_path, out_dir, mode, value, extension, delim))
+        thread = threading.Thread(target=self.split_file, 
+                                args=(file_path, out_dir, mode, value, extension, delim))
+        thread.daemon = True
         thread.start()
+
+    def cancel_operation(self):
+        if self.is_running:
+            self.cancel_event.set()
+            self.current_file.set("Cancelling...")
+            self.button_cancel.config(state=tk.DISABLED)
+
+    def update_progress(self, current_row, total_rows, current_filename):
+        """Update progress from worker thread"""
+        if total_rows > 0:
+            percentage = min(100, (current_row / total_rows) * 100)
+            
+            # Schedule UI updates
+            self.root.after(0, lambda: self.progress.configure(value=percentage))
+            self.root.after(0, lambda: self.progress_percentage.set(f"{percentage:.1f}%"))
+            self.root.after(0, lambda: self.current_file.set(os.path.basename(current_filename)))
+            self.root.after(0, lambda: self.rows_processed.set(f"{current_row:,}"))
 
     def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension, custom_delimiter):
         try:
             os.makedirs(output_dir, exist_ok=True)
+            
+            # First pass: count total rows for progress tracking
+            self.root.after(0, lambda: self.current_file.set("Analyzing file..."))
+            total_rows = 0
+            with open(input_file, 'r', newline='', encoding='utf-8') as infile:
+                detected_delimiter = self.detected_delimiter.get() or ','
+                reader = csv.reader(infile, delimiter=detected_delimiter)
+                next(reader)  # Skip header
+                for _ in reader:
+                    if self.cancel_event.is_set():
+                        return
+                    total_rows += 1
+                    if total_rows % 1000 == 0:  # Update every 1000 rows during analysis
+                        self.root.after(0, lambda r=total_rows: self.current_file.set(f"Analyzing... {r:,} rows"))
+
+            if self.cancel_event.is_set():
+                return
+
+            # Update total rows display
+            self.root.after(0, lambda: self.total_rows.set(f"{total_rows:,}"))
+
+            # Second pass: actual splitting with progress tracking
             part_num = 1
             base_filename = os.path.splitext(os.path.basename(input_file))[0]
             max_size_bytes = size_or_rows * 1024 * 1024 if mode == "size" else None
@@ -184,6 +340,7 @@ class FileSplitterApp:
                 input_data_row_count = 0
                 output_data_row_count = 0
                 per_file_row_counts = []
+                processed_rows = 0
 
                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                 outfile = open(output_path, 'w', newline='', encoding='utf-8')
@@ -193,7 +350,18 @@ class FileSplitterApp:
                 current_rows = 0
 
                 for row in reader:
+                    if self.cancel_event.is_set():
+                        outfile.close()
+                        self.root.after(0, lambda: self.show_cancelled())
+                        return
+
                     input_data_row_count += 1
+                    processed_rows += 1
+                    
+                    # Update progress every 100 rows
+                    if processed_rows % 100 == 0:
+                        self.update_progress(processed_rows, total_rows, output_path)
+                    
                     outfile.flush()
                     if (
                         (mode == "size" and current_size >= max_size_bytes) or
@@ -218,6 +386,14 @@ class FileSplitterApp:
                 per_file_row_counts.append(current_rows)
                 output_data_row_count += current_rows
 
+                # Final progress update
+                self.update_progress(total_rows, total_rows, output_path)
+
+            if self.cancel_event.is_set():
+                self.root.after(0, lambda: self.show_cancelled())
+                return
+
+            # Create log file
             if self.create_log.get():
                 log_path = os.path.join(output_dir, "log.txt")
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -245,14 +421,25 @@ class FileSplitterApp:
                     else:
                         log_file.write("Validation: FAIL ❌\n")
                     log_file.write(f"\n============================================================\n")
+            
             self.root.after(0, lambda: self.show_success(part_num, output_dir))
+            
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}"))
         finally:
             self.root.after(0, self.reset_ui)
 
     def show_success(self, parts, directory):
-        messagebox.showinfo("Success", f"File split into {parts} parts and saved in:\n{directory}")
+        elapsed_time = time.time() - self.start_time
+        time_str = f"{elapsed_time:.1f} seconds"
+        if elapsed_time >= 60:
+            time_str = f"{elapsed_time/60:.1f} minutes"
+        
+        messagebox.showinfo("Success", 
+                          f"✅ File successfully split into {parts} parts!\n\n"
+                          f"Time taken: {time_str}\n"
+                          f"Output location:\n{directory}")
+        
         if self.open_dir_after_split.get():
             try:
                 os.startfile(directory)
@@ -264,22 +451,35 @@ class FileSplitterApp:
                 elif platform.system() == "Linux":
                     subprocess.call(["xdg-open", directory])
 
+    def show_cancelled(self):
+        messagebox.showinfo("Cancelled", "❌ Operation was cancelled by user.")
+
     def reset_ui(self):
+        self.is_running = False
         self.button_start.config(state=tk.NORMAL)
-        self.progress.stop()
-        self.root.update_idletasks()
+        self.button_cancel.config(state=tk.DISABLED)
+        self.progress['value'] = 0
+        self.progress_percentage.set("")
+        # Keep stats values visible after completion for user validation
 
     def validate_delimiter(self, text):
         return len(text) <= 1 and (text == '' or text.isprintable())
-
 
     def on_input_file_change(self, *args):
         if not self.input_file.get():
             self.delim_checkbox.state(["disabled"])
             self.use_custom_delim.set(False)
             self.toggle_delim_fields()
+            # Clear stats when no file selected
+            self.total_rows.set("")
+            self.current_file.set("")
+            self.rows_processed.set("")
         else:
             self.delim_checkbox.state(["!disabled"])
+            # Clear previous stats when new file selected
+            self.total_rows.set("")
+            self.current_file.set("")
+            self.rows_processed.set("")
 
 if __name__ == "__main__":
     root = tk.Tk()

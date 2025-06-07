@@ -55,6 +55,10 @@ class FileSplitterApp:
         """Configure clean styling for the application"""
         style = ttk.Style()
         
+        # Configure frame title styling
+        style.configure("Bold.TLabelframe.Label", 
+                       font=("Segoe UI", 9, "bold"))
+        
         # Configure stats styling
         style.configure("Stats.TLabel", 
                        font=("Segoe UI", 9),
@@ -97,7 +101,7 @@ class FileSplitterApp:
         main_frame.grid(row=0, column=0, sticky="nsew")
 
         # File Selection Section
-        file_frame = ttk.LabelFrame(main_frame, text="File Selection", padding=10)
+        file_frame = ttk.LabelFrame(main_frame, text="File Selection", padding=10, style="Bold.TLabelframe")
         file_frame.grid(row=0, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
         ttk.Entry(file_frame, textvariable=self.input_file, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
@@ -105,7 +109,7 @@ class FileSplitterApp:
         file_frame.columnconfigure(0, weight=1)
 
         # Output Directory Section
-        output_frame = ttk.LabelFrame(main_frame, text="Output Directory", padding=10)
+        output_frame = ttk.LabelFrame(main_frame, text="Output Directory", padding=10, style="Bold.TLabelframe")
         output_frame.grid(row=1, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
         ttk.Entry(output_frame, textvariable=self.output_dir, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
@@ -116,7 +120,7 @@ class FileSplitterApp:
         output_frame.columnconfigure(0, weight=1)
 
         # Split Settings Section
-        settings_frame = ttk.LabelFrame(main_frame, text="Split Settings", padding=10)
+        settings_frame = ttk.LabelFrame(main_frame, text="Split Settings", padding=10, style="Bold.TLabelframe")
         settings_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
         # Split mode selection
@@ -160,7 +164,7 @@ class FileSplitterApp:
         settings_frame.columnconfigure(0, weight=1)
 
         # Progress Section
-        progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding=10)
+        progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding=10, style="Bold.TLabelframe")
         progress_frame.grid(row=3, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
         # Progress bar with percentage

@@ -65,6 +65,12 @@ class FileSplitterApp:
                        background="#ecf0f1",
                        relief="flat",
                        borderwidth=1)
+        style.configure("StatsAnalyzing.TLabel", 
+                       font=("Segoe UI", 10, "bold"),
+                       foreground="#3498db",  # Blue color for analyzing
+                       background="#ecf0f1",
+                       relief="flat",
+                       borderwidth=1)
         style.configure("StatsFrame.TFrame",
                        background="#f8f9fa",
                        relief="solid",
@@ -176,17 +182,17 @@ class FileSplitterApp:
         
         # Total Rows
         ttk.Label(stats_container, text="Total Rows:", style="Stats.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
-        total_rows_label = ttk.Label(stats_container, textvariable=self.total_rows, style="StatsValue.TLabel", width=15, anchor="w")
-        total_rows_label.grid(row=0, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
+        self.total_rows_label = ttk.Label(stats_container, textvariable=self.total_rows, style="StatsAnalyzing.TLabel", width=15, anchor="w")
+        self.total_rows_label.grid(row=0, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
         
         # Current File  
         ttk.Label(stats_container, text="Current File:", style="Stats.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
-        current_file_label = ttk.Label(stats_container, textvariable=self.current_file, style="StatsValue.TLabel", width=15, anchor="w")
+        current_file_label = ttk.Label(stats_container, textvariable=self.current_file, style="StatsAnalyzing.TLabel", width=15, anchor="w")
         current_file_label.grid(row=1, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
         
         # Rows Processed
         ttk.Label(stats_container, text="Rows Processed:", style="Stats.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 5))
-        rows_processed_label = ttk.Label(stats_container, textvariable=self.rows_processed, style="StatsValue.TLabel", width=15, anchor="w")
+        rows_processed_label = ttk.Label(stats_container, textvariable=self.rows_processed, style="StatsAnalyzing.TLabel", width=15, anchor="w")
         rows_processed_label.grid(row=2, column=1, sticky="ew")
         
         progress_frame.columnconfigure(0, weight=1)
@@ -307,7 +313,7 @@ class FileSplitterApp:
             os.makedirs(output_dir, exist_ok=True)
             
             # First pass: count total rows for progress tracking
-            self.root.after(0, lambda: self.current_file.set("Analyzing file..."))
+            self.root.after(0, lambda: self.total_rows.set("Analyzing file..."))
             total_rows = 0
             with open(input_file, 'r', newline='', encoding='utf-8') as infile:
                 detected_delimiter = self.detected_delimiter.get() or ','
@@ -318,7 +324,7 @@ class FileSplitterApp:
                         return
                     total_rows += 1
                     if total_rows % 1000 == 0:  # Update every 1000 rows during analysis
-                        self.root.after(0, lambda r=total_rows: self.current_file.set(f"Analyzing... {r:,} rows"))
+                        self.root.after(0, lambda r=total_rows: self.total_rows.set(f"Analyzing... {r:,} rows"))
 
             if self.cancel_event.is_set():
                 return

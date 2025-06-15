@@ -91,12 +91,12 @@ class FileSplitterApp:
                        background="#f8f9fa",
                        relief="solid",
                        borderwidth=1)
-        style.configure("ValidationPass.TLabel",
-                       font=("Segoe UI", 14, "bold"),
-                       foreground="#27ae60")  # Green for pass
-        style.configure("ValidationFail.TLabel",
-                       font=("Segoe UI", 14, "bold"),
-                       foreground="#e74c3c")  # Red for fail
+        style.configure("ProgressSuccess.TLabel",
+                       font=("Segoe UI", 10, "bold"),
+                       foreground="#27ae60")  # Green for success
+        style.configure("ProgressFail.TLabel",
+                       font=("Segoe UI", 10, "bold"),
+                       foreground="#e74c3c")  # Red for fail/cancel
 
     def create_menu(self):
         menubar = Menu(self.root)
@@ -233,18 +233,13 @@ class FileSplitterApp:
         progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding=10, style="Bold.TLabelframe")
         progress_frame.grid(row=4, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
-        # Progress bar with percentage/validation status
+        # Progress bar with percentage
         self.progress = ttk.Progressbar(progress_frame, mode='determinate')
         self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=(0, 10))
         
-        # This label will show percentage during operation and checkmark after completion
+        # Progress percentage label
         self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_percentage, width=10, anchor="center")
         self.progress_label.grid(row=0, column=1, pady=(0, 10), sticky="ew")
-        
-        # Validation status label (will be used for checkmarks)
-        self.validation_label = ttk.Label(progress_frame, text="", width=10, style="ValidationPass.TLabel", anchor="center")
-        self.validation_label.grid(row=0, column=1, pady=(0, 10), sticky="ew")
-        self.validation_label.grid_remove()  # Initially hidden
         
         # Configure column weights to prevent resizing
         progress_frame.columnconfigure(0, weight=1)
@@ -258,7 +253,10 @@ class FileSplitterApp:
         self.button_start.grid(row=0, column=0, padx=(0, 10))
         
         self.button_cancel = ttk.Button(button_frame, text="Cancel", command=self.cancel_operation, state="disabled")
-        self.button_cancel.grid(row=0, column=1)
+        self.button_cancel.grid(row=0, column=1, padx=(0, 10))
+        
+        self.button_reset = ttk.Button(button_frame, text="Reset", command=self.reset_stats_and_progress, state="disabled")
+        self.button_reset.grid(row=0, column=2)
 
         main_frame.columnconfigure(0, weight=1)
 
@@ -361,14 +359,14 @@ class FileSplitterApp:
         self.button_cancel.config(state=tk.NORMAL)
         self.progress['value'] = 0
         self.progress_percentage.set("0%")
+        self.progress_label.configure(style="TLabel")  # Reset to default style
         self.total_rows.set("")
         self.current_file.set("Initializing...")
         self.rows_processed.set("0")
         self.file_count.set("0")
         self.output_file_type.set(extension.upper())
         
-        # Show percentage label, hide validation label
-        self.validation_label.grid_remove()
+        # Show percentage label
         self.progress_label.grid()
 
         delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
@@ -657,24 +655,18 @@ class FileSplitterApp:
         if elapsed_time >= 60:
             time_str = f"{elapsed_time/60:.1f} minutes"
         
-        # Set validation checkmark based on row count comparison
+        # Change percentage color based on validation result
         if self.input_row_count == self.output_row_count:
-            checkmark = "✅"
-            style = "ValidationPass.TLabel"
+            # Success - show percentage in green
+            self.progress_label.configure(style="ProgressSuccess.TLabel")
         else:
-            checkmark = "❌" 
-            style = "ValidationFail.TLabel"
+            # Validation failed - show percentage in red
+            self.progress_label.configure(style="ProgressFail.TLabel")
         
-        # Update UI to show validation checkmark
-        def show_checkmark():
-            self.progress_label.grid_remove()
-            self.validation_label.configure(text=checkmark, style=style)
-            self.validation_label.grid()
+        # Enable Reset button after completion
+        self.button_reset.config(state="normal")
         
-        # Schedule the checkmark display
-        self.root.after(100, show_checkmark)
-        
-        # Open directory if requested (removed success popup message)
+        # Open directory if requested (no popup message)
         if self.open_dir_after_split.get():
             try:
                 os.startfile(directory)
@@ -687,14 +679,11 @@ class FileSplitterApp:
                     subprocess.call(["xdg-open", directory])
 
     def show_cancelled(self):
-        # Show red X checkmark for cancelled operation
-        def show_cancel_checkmark():
-            self.progress_label.grid_remove()
-            self.validation_label.configure(text="❌", style="ValidationFail.TLabel")
-            self.validation_label.grid()
+        # Show percentage in red for cancelled operation
+        self.progress_label.configure(style="ProgressFail.TLabel")
         
-        # Schedule the checkmark display
-        self.root.after(100, show_cancel_checkmark)
+        # Enable Reset button after cancellation
+        self.button_reset.config(state="normal")
         
         messagebox.showinfo("Cancelled", "❌ Operation was cancelled by user.")
 
@@ -702,12 +691,29 @@ class FileSplitterApp:
         self.is_running = False
         self.button_start.config(state=tk.NORMAL)
         self.button_cancel.config(state=tk.DISABLED)
+        # Keep progress bar and percentage visible after completion
+
+    def reset_stats_and_progress(self):
+        """Reset only statistics and progress, keeping all other settings intact"""
+        # Reset progress bar and percentage
         self.progress['value'] = 0
         self.progress_percentage.set("")
-        # Show percentage label, hide validation label for next operation
-        self.validation_label.grid_remove()
-        self.progress_label.grid()
-        # Keep stats values visible after completion for user validation
+        self.progress_label.configure(style="TLabel")  # Reset to default style
+        
+        # Clear all statistics
+        self.total_rows.set("")
+        self.current_file.set("")
+        self.rows_processed.set("")
+        self.file_count.set("")
+        self.output_file_type.set("")
+        
+        # Reset validation tracking
+        self.input_row_count = 0
+        self.output_row_count = 0
+        self.current_part_num = 0
+        
+        # Disable Reset button again
+        self.button_reset.config(state="disabled")
 
     def validate_delimiter(self, text):
         return len(text) <= 1 and (text == '' or text.isprintable())
@@ -727,9 +733,6 @@ class FileSplitterApp:
             self.rows_processed.set("")
             self.file_count.set("")
             self.output_file_type.set("")
-            # Reset to percentage label
-            self.validation_label.grid_remove()
-            self.progress_label.grid()
         else:
             # Enable browse button when file is selected
             self.output_browse_button.config(state="normal")
@@ -743,9 +746,6 @@ class FileSplitterApp:
             self.rows_processed.set("")
             self.file_count.set("")
             self.output_file_type.set("")
-            # Reset to percentage label
-            self.validation_label.grid_remove()
-            self.progress_label.grid()
 
 if __name__ == "__main__":
     root = tk.Tk()

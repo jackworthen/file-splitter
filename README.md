@@ -1,5 +1,5 @@
 # 📁✂️ File Splitter Pro
-> 🚀 **Split large files with ease!** A powerful, user-friendly GUI application for splitting CSV, TXT, and DAT files by size or row count.
+> 🚀 **Split large files with ease!** A powerful, user-friendly GUI application for splitting CSV, TXT, DAT, and JSON files by size or row count.
 
 ---
 
@@ -14,23 +14,41 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **📊 Split by Rows**: Divide files by exact row count
 - **🔧 Smart Delimiter Detection**: Automatically detects CSV delimiters
 - **⚙️ Custom Delimiters**: Use your own delimiter for maximum flexibility
+- **✅ Row Count Validation**: Automatic verification that input and output row counts match
+- **🛑 Cancellation Support**: Stop operations mid-process with partial file preservation
 
 ### 🎨 **User Experience**
 - **🖥️ Beautiful GUI**: Clean, modern interface built with tkinter
 - **📂 Easy File Selection**: Drag, drop, or browse for files
 - **📁 Custom Output Directory**: Choose where your split files go
 - **🚀 Threaded Processing**: Non-blocking UI during file operations
-- **📋 Detailed Logging**: Track every split operation with comprehensive logs
+- **📊 Real-time Statistics**: Live dashboard showing progress, file count, and processing stats
+- **🎯 Progress Tracking**: Visual progress bar with percentage completion
+- **🔄 Reset Functionality**: Clear all statistics and start fresh
+- **⌨️ Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help
+- **🎨 Visual Feedback**: Color-coded progress indicators for success/failure
+- **📋 Enhanced Logging**: Comprehensive logs with file details and validation results
 
 ### 🛠️ **File Support**
-- **📄 CSV Files** (`.csv`)
-- **📝 Text Files** (`.txt`)
-- **💾 Data Files** (`.dat`)
+- **📄 CSV Files** (`.csv`) - with intelligent delimiter handling
+- **📝 Text Files** (`.txt`) - preserving original formatting
+- **💾 Data Files** (`.dat`) - for specialized data formats
+- **🗂️ JSON Files** (`.json`) - with memory-efficient processing
 
 ### 🌍 **Cross-Platform**
 - ✅ **Windows** (with automatic folder opening)
 - ✅ **macOS** (native support)
 - ✅ **Linux** (full compatibility)
+
+### 🔧 **Advanced Features**
+- **🧠 Memory Efficient**: Processes files line-by-line for large datasets
+- **📋 Header Preservation**: Maintains headers in all split files (CSV/TXT/DAT)
+- **🌐 UTF-8 Support**: Full Unicode character support
+- **⚡ Smart JSON Processing**: Efficient size estimation for JSON files
+- **📊 Detailed Statistics**: Track total rows, processed rows, current file, and file count
+- **🛡️ Safe Processing**: Preserves original files during splitting
+- **📝 Operation Logging**: Optional detailed logs with timestamps and validation
+- **🎯 Precise Splitting**: Accurate size and row count splitting algorithms
 
 ---
 
@@ -58,7 +76,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 ## 🎮 How to Use
 
 ### Step 1: 📁 Select Your File
-Click **Browse** to select the file you want to split. The app supports CSV, TXT, and DAT files.
+Click **Browse** to select the file you want to split. The app supports CSV, TXT, DAT, and JSON files.
 
 ### Step 2: 📂 Choose Output Location
 Pick where you want your split files to be saved. By default, it creates a `split_files` folder next to your original file.
@@ -69,12 +87,19 @@ Choose your splitting method:
 - **📊 By Rows**: Enter the maximum number of rows per file
 
 ### Step 4: 🔧 Fine-tune (Optional)
-- **Delimiter Settings**: Let the app auto-detect or specify your own
-- **Output Format**: Choose between CSV, TXT, or DAT output
+- **Delimiter Settings**: Let the app auto-detect or specify your own (CSV/TXT/DAT only)
+- **Output Format**: Choose between CSV, TXT, DAT, or JSON output
+- **Directory Options**: Automatically open output folder when complete
 - **Logging**: Keep detailed logs of your operations (recommended!)
 
 ### Step 5: ✂️ Split!
-Click **Start Splitting** and watch the magic happen! ✨
+Click **Start Splitting** and watch the real-time progress! ✨
+
+### Step 6: 📊 Monitor Progress
+- **Live Statistics**: Watch total rows, processed rows, current file, and file count
+- **Progress Bar**: Visual indicator with percentage completion
+- **Cancel Anytime**: Stop the operation if needed - partial files are preserved
+- **Reset**: Clear all statistics and start fresh
 
 ---
 
@@ -84,19 +109,35 @@ Click **Start Splitting** and watch the magic happen! ✨
 - **🧵 Multi-threaded**: File operations run in background threads
 - **🔍 Smart Detection**: CSV sniffer for automatic delimiter detection
 - **💾 Memory Efficient**: Processes files line-by-line for large datasets
-- **📊 Validation**: Automatic row count verification
+- **📊 Real-time Validation**: Automatic row count verification
+- **🛑 Graceful Cancellation**: Handles interruptions with partial file preservation
 
 ### File Handling
 - **🔒 Safe Processing**: Preserves original files
-- **📋 Header Preservation**: Maintains CSV headers in all split files
+- **📋 Header Preservation**: Maintains headers in all split files (CSV/TXT/DAT)
 - **🎯 Precise Splitting**: Accurate size and row count splitting
 - **📝 UTF-8 Support**: Full Unicode character support
+- **⚡ Smart JSON Processing**: Memory-efficient JSON array handling with size estimation
+
+### Enhanced Statistics Dashboard
+- **📊 Total Rows**: Shows complete file analysis
+- **🔄 Rows Processed**: Real-time processing counter
+- **📁 Current File**: Active output file being written
+- **📝 File Count**: Number of split files created
+- **🎯 Output Type**: Selected output format
+- **📈 Progress Percentage**: Visual completion indicator
 
 ### Logging Features
 - **⏰ Timestamps**: Every operation is timestamped
-- **📊 Statistics**: Input/output file sizes and row counts
-- **✅ Validation**: Automatic verification of split accuracy
+- **📊 Detailed Statistics**: Input/output file sizes and row counts
+- **✅ Validation Results**: Automatic verification of split accuracy
 - **📁 Part Details**: Size and row count for each generated file
+- **🛑 Cancellation Logs**: Records partial operations when cancelled
+- **🔍 Error Tracking**: Comprehensive error logging and reporting
+
+### Keyboard Shortcuts
+- **Ctrl+Q**: Quick exit
+- **Ctrl+D**: Open documentation/help
 
 ---
 

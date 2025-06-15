@@ -18,7 +18,7 @@ class FileSplitterApp:
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
         
-        self.root.geometry("450x710")
+        self.root.geometry("450x720")
         self.root.resizable(False, False)
         
         # Configure style
@@ -137,11 +137,13 @@ class FileSplitterApp:
         output_frame = ttk.LabelFrame(main_frame, text="Output Directory", padding=10, style="Bold.TLabelframe")
         output_frame.grid(row=1, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
-        ttk.Entry(output_frame, textvariable=self.output_dir, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
-        ttk.Button(output_frame, text="Browse", command=self.select_output_directory).grid(row=0, column=1, pady=5)
+        self.output_entry = ttk.Entry(output_frame, textvariable=self.output_dir, width=50)
+        self.output_entry.grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
+        self.output_browse_button = ttk.Button(output_frame, text="Browse", command=self.select_output_directory, state="disabled")
+        self.output_browse_button.grid(row=0, column=1, pady=5)
         
-        ttk.Checkbutton(output_frame, text="Enable Logging", variable=self.create_log).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
-        ttk.Checkbutton(output_frame, text="Open Directory After Split", variable=self.open_dir_after_split).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
+        ttk.Checkbutton(output_frame, text="Open Directory After Split", variable=self.open_dir_after_split).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
+        ttk.Checkbutton(output_frame, text="Enable Logging", variable=self.create_log).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
         output_frame.columnconfigure(0, weight=1)
 
         # Split Settings Section
@@ -712,6 +714,10 @@ class FileSplitterApp:
 
     def on_input_file_change(self, *args):
         if not self.input_file.get():
+            # Disable browse button when no file selected, but keep input box enabled
+            self.output_browse_button.config(state="disabled")
+            self.output_dir.set("")  # Clear output directory
+            
             self.delim_checkbox.state(["disabled"])
             self.use_custom_delim.set(False)
             self.toggle_delim_fields()
@@ -725,6 +731,9 @@ class FileSplitterApp:
             self.validation_label.grid_remove()
             self.progress_label.grid()
         else:
+            # Enable browse button when file is selected
+            self.output_browse_button.config(state="normal")
+            
             # Enable delimiter checkbox only if not JSON format
             if self.file_type.get() != ".json":
                 self.delim_checkbox.state(["!disabled"])

@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, Menu
 import webbrowser
 import time
+import json
 
 class FileSplitterApp:
     def __init__(self, root):
@@ -50,6 +51,10 @@ class FileSplitterApp:
         self.create_menu()
         self.create_widgets()
         self.input_file.trace_add("write", self.on_input_file_change)
+        self.file_type.trace_add("write", self.on_file_type_change)
+        
+        # Set up keyboard shortcuts
+        self.setup_keyboard_shortcuts()
 
     def setup_styles(self):
         """Configure clean styling for the application"""
@@ -84,14 +89,21 @@ class FileSplitterApp:
         menubar = Menu(self.root)
 
         file_menu = Menu(menubar, tearoff=0)
-        file_menu.add_command(label="⏻ Exit", command=self.root.quit)
+        file_menu.add_command(label="Exit", command=self.root.quit, accelerator="Ctrl+Q")
         menubar.add_cascade(label="File", menu=file_menu)
 
         help_menu = Menu(menubar, tearoff=0)
-        help_menu.add_command(label="📘 Documentation", command=self.open_help)
+        help_menu.add_command(label="Documentation", command=self.open_help, accelerator="Ctrl+D")
         menubar.add_cascade(label="Help", menu=help_menu)
 
         self.root.config(menu=menubar)
+
+    def setup_keyboard_shortcuts(self):
+        """Set up keyboard shortcuts"""
+        self.root.bind('<Control-q>', lambda e: self.root.quit())
+        self.root.bind('<Control-Q>', lambda e: self.root.quit())
+        self.root.bind('<Control-d>', lambda e: self.open_help())
+        self.root.bind('<Control-D>', lambda e: self.open_help())
 
     def open_help(self):
         webbrowser.open("https://github.com/jackworthen/file-splitter")
@@ -136,7 +148,7 @@ class FileSplitterApp:
         
         # File type selection
         ttk.Label(settings_frame, text="Output file type:").grid(row=1, column=0, pady=(10, 0), sticky="w")
-        ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat"], width=10).grid(row=1, column=1, pady=(10, 0), sticky="w")
+        ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).grid(row=1, column=1, pady=(10, 0), sticky="w")
 
         # Delimiter settings
         self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", 
@@ -249,8 +261,22 @@ class FileSplitterApp:
             self.size_entry.config(state="disabled")
             self.row_entry.config(state="normal")
 
+    def on_file_type_change(self, *args):
+        """Handle file type changes to enable/disable delimiter options"""
+        if self.file_type.get() == ".json":
+            # Disable delimiter options for JSON
+            self.use_custom_delim.set(False)
+            self.delim_checkbox.state(["disabled"])
+            self.toggle_delim_fields()
+        else:
+            # Enable delimiter options for other formats if file is selected
+            if self.input_file.get():
+                self.delim_checkbox.state(["!disabled"])
+
     def toggle_delim_fields(self):
-        show = self.use_custom_delim.get() and self.input_file.get()
+        show = (self.use_custom_delim.get() and 
+                self.input_file.get() and 
+                self.file_type.get() != ".json")
         for widget in [self.delim_label, self.delim_display, self.set_delim_label, self.set_delim_entry]:
             widget.grid() if show else widget.grid_remove()
 
@@ -341,6 +367,7 @@ class FileSplitterApp:
             base_filename = os.path.splitext(os.path.basename(input_file))[0]
             max_size_bytes = size_or_rows * 1024 * 1024 if mode == "size" else None
             max_rows = size_or_rows if mode == "rows" else None
+            is_json_format = file_extension == ".json"
 
             with open(input_file, 'r', newline='', encoding='utf-8') as infile:
                 detected_delimiter = self.detected_delimiter.get() or ','
@@ -353,15 +380,25 @@ class FileSplitterApp:
                 processed_rows = 0
 
                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
-                outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                writer = csv.writer(outfile, delimiter=custom_delimiter)
-                writer.writerow(header)
-                current_size = outfile.tell()
-                current_rows = 0
+                
+                if is_json_format:
+                    # For JSON, we'll collect rows in memory and write them all at once
+                    current_json_data = []
+                    current_rows = 0
+                    estimated_size = 2  # Start with "[]" 
+                    avg_row_size = 0  # Track average row size for better estimation
+                else:
+                    # For CSV/TXT/DAT, use the original method
+                    outfile = open(output_path, 'w', newline='', encoding='utf-8')
+                    writer = csv.writer(outfile, delimiter=custom_delimiter)
+                    writer.writerow(header)
+                    current_size = outfile.tell()
+                    current_rows = 0
 
                 for row in reader:
                     if self.cancel_event.is_set():
-                        outfile.close()
+                        if not is_json_format:
+                            outfile.close()
                         self.root.after(0, lambda: self.show_cancelled())
                         return
 
@@ -372,29 +409,75 @@ class FileSplitterApp:
                     if processed_rows % 100 == 0:
                         self.update_progress(processed_rows, total_rows, output_path)
                     
-                    outfile.flush()
-                    if (
-                        (mode == "size" and current_size >= max_size_bytes) or
-                        (mode == "rows" and current_rows >= max_rows)
-                    ):
-                        outfile.close()
+                    if is_json_format:
+                        # Convert row to JSON object
+                        row_dict = dict(zip(header, row))
+                        current_json_data.append(row_dict)
+                        current_rows += 1
+                        
+                        # Efficient size estimation for JSON
+                        if mode == "size":
+                            if current_rows <= 10:
+                                # For first 10 rows, calculate actual size to get better average
+                                row_json_size = len(json.dumps(row_dict, separators=(',', ':')))
+                                estimated_size += row_json_size + (1 if current_rows > 1 else 0)  # +1 for comma
+                                avg_row_size = estimated_size / current_rows if current_rows > 0 else 0
+                            else:
+                                # Use average size estimation for subsequent rows
+                                estimated_size += avg_row_size + 1  # +1 for comma
+                        
+                        # Check if we need to split
+                        split_needed = False
+                        if mode == "size":
+                            split_needed = estimated_size >= max_size_bytes
+                        else:  # mode == "rows"
+                            split_needed = current_rows >= max_rows
+                            
+                        if split_needed:
+                            # Write JSON file (compact format for better performance)
+                            with open(output_path, 'w', encoding='utf-8') as json_file:
+                                json.dump(current_json_data, json_file, separators=(',', ':'))
+                            
+                            per_file_row_counts.append(current_rows)
+                            output_data_row_count += current_rows
+                            part_num += 1
+                            output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
+                            current_json_data = []
+                            current_rows = 0
+                            estimated_size = 2  # Reset to "[]"
+                    else:
+                        # Original CSV/TXT/DAT logic
+                        outfile.flush()
+                        if (
+                            (mode == "size" and current_size >= max_size_bytes) or
+                            (mode == "rows" and current_rows >= max_rows)
+                        ):
+                            outfile.close()
+                            per_file_row_counts.append(current_rows)
+                            output_data_row_count += current_rows
+                            part_num += 1
+                            output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
+                            outfile = open(output_path, 'w', newline='', encoding='utf-8')
+                            writer = csv.writer(outfile, delimiter=custom_delimiter)
+                            writer.writerow(header)
+                            current_size = outfile.tell()
+                            current_rows = 0
+
+                        writer.writerow(row)
+                        current_size = outfile.tell()
+                        current_rows += 1
+
+                # Handle the last file
+                if is_json_format:
+                    if current_json_data:  # Write remaining data
+                        with open(output_path, 'w', encoding='utf-8') as json_file:
+                            json.dump(current_json_data, json_file, separators=(',', ':'))
                         per_file_row_counts.append(current_rows)
                         output_data_row_count += current_rows
-                        part_num += 1
-                        output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
-                        outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                        writer = csv.writer(outfile, delimiter=custom_delimiter)
-                        writer.writerow(header)
-                        current_size = outfile.tell()
-                        current_rows = 0
-
-                    writer.writerow(row)
-                    current_size = outfile.tell()
-                    current_rows += 1
-
-                outfile.close()
-                per_file_row_counts.append(current_rows)
-                output_data_row_count += current_rows
+                else:
+                    outfile.close()
+                    per_file_row_counts.append(current_rows)
+                    output_data_row_count += current_rows
 
                 # Final progress update
                 self.update_progress(total_rows, total_rows, output_path)
@@ -416,7 +499,8 @@ class FileSplitterApp:
                     log_file.write(f"Input File: {input_file}\n")
                     log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
                     log_file.write(f"Total Data Rows in Input File: {input_data_row_count:,}\n")
-                    log_file.write(f"Total Parts Created: {part_num}\n\n")
+                    log_file.write(f"Total Parts Created: {part_num}\n")
+                    log_file.write(f"Output Format: {file_extension}\n\n")
 
                     for i in range(part_num):
                         part_filename = os.path.join(output_dir, f"{base_filename}_{i+1}{file_extension}")
@@ -425,7 +509,8 @@ class FileSplitterApp:
                         log_file.write(f"Part {i+1}: {row_count} data rows, {part_size:,} bytes\n")
 
                     log_file.write(f"\nTotal Data Rows in Split Files: {output_data_row_count:,}\n")
-                    log_file.write(f"Delimiter Used: '{custom_delimiter}'\n") 
+                    if not is_json_format:
+                        log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
                     if input_data_row_count == output_data_row_count:
                         log_file.write("Validation: PASS ✅\n")
                     else:
@@ -485,7 +570,9 @@ class FileSplitterApp:
             self.current_file.set("")
             self.rows_processed.set("")
         else:
-            self.delim_checkbox.state(["!disabled"])
+            # Enable delimiter checkbox only if not JSON format
+            if self.file_type.get() != ".json":
+                self.delim_checkbox.state(["!disabled"])
             # Clear previous stats when new file selected
             self.total_rows.set("")
             self.current_file.set("")

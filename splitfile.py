@@ -126,7 +126,7 @@ class FileSplitterApp:
         main_frame.grid(row=0, column=0, sticky="nsew")
 
         # File Selection Section
-        file_frame = ttk.LabelFrame(main_frame, text="File Selection", padding=10, style="Bold.TLabelframe")
+        file_frame = ttk.LabelFrame(main_frame, text="Source File", padding=10, style="Bold.TLabelframe")
         file_frame.grid(row=0, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
         ttk.Entry(file_frame, textvariable=self.input_file, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")

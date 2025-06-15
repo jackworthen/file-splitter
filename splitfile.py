@@ -47,6 +47,7 @@ class FileSplitterApp:
         self.rows_processed = tk.StringVar(value="")
         self.total_rows = tk.StringVar(value="")
         self.progress_percentage = tk.StringVar(value="")
+        self.output_file_type = tk.StringVar(value="")
 
         self.create_menu()
         self.create_widgets()
@@ -207,9 +208,14 @@ class FileSplitterApp:
         current_file_label.grid(row=1, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
         
         # Rows Processed
-        ttk.Label(stats_container, text="Rows Processed:", style="Stats.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 5))
+        ttk.Label(stats_container, text="Rows Processed:", style="Stats.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
         rows_processed_label = ttk.Label(stats_container, textvariable=self.rows_processed, style="StatsAnalyzing.TLabel", width=15, anchor="w")
-        rows_processed_label.grid(row=2, column=1, sticky="ew")
+        rows_processed_label.grid(row=2, column=1, sticky="ew", pady=(0, 5))
+        
+        # Output File Type
+        ttk.Label(stats_container, text="Output File Type:", style="Stats.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 5))
+        output_type_label = ttk.Label(stats_container, textvariable=self.output_file_type, style="StatsAnalyzing.TLabel", width=15, anchor="w")
+        output_type_label.grid(row=3, column=1, sticky="ew")
         
         progress_frame.columnconfigure(0, weight=1)
 
@@ -314,6 +320,7 @@ class FileSplitterApp:
         self.total_rows.set("")
         self.current_file.set("Initializing...")
         self.rows_processed.set("0")
+        self.output_file_type.set(extension.upper())
 
         delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
         thread = threading.Thread(target=self.split_file, 
@@ -569,6 +576,7 @@ class FileSplitterApp:
             self.total_rows.set("")
             self.current_file.set("")
             self.rows_processed.set("")
+            self.output_file_type.set("")
         else:
             # Enable delimiter checkbox only if not JSON format
             if self.file_type.get() != ".json":
@@ -577,6 +585,7 @@ class FileSplitterApp:
             self.total_rows.set("")
             self.current_file.set("")
             self.rows_processed.set("")
+            self.output_file_type.set("")
 
 if __name__ == "__main__":
     root = tk.Tk()

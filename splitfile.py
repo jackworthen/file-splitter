@@ -394,6 +394,14 @@ class FileSplitterApp:
             self.root.after(0, lambda: self.file_count.set(str(part_num)))
 
     def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension, custom_delimiter):
+        cancelled = False
+        analysis_rows_counted = 0
+        part_num = 1
+        base_filename = os.path.splitext(os.path.basename(input_file))[0]
+        input_data_row_count = 0
+        output_data_row_count = 0
+        per_file_row_counts = []
+        
         try:
             os.makedirs(output_dir, exist_ok=True)
             
@@ -406,20 +414,28 @@ class FileSplitterApp:
                 next(reader)  # Skip header
                 for _ in reader:
                     if self.cancel_event.is_set():
-                        return
+                        cancelled = True
+                        analysis_rows_counted = total_rows
+                        break
                     total_rows += 1
                     if total_rows % 1000 == 0:  # Update every 1000 rows during analysis
                         self.root.after(0, lambda r=total_rows: self.total_rows.set(f"Analyzing... {r:,} rows"))
 
-            if self.cancel_event.is_set():
-                return
+            if self.cancel_event.is_set() and not cancelled:
+                cancelled = True
+                analysis_rows_counted = total_rows
 
             # Update total rows display
             self.root.after(0, lambda: self.total_rows.set(f"{total_rows:,}"))
 
+            # If cancelled during analysis, still write log
+            if cancelled:
+                self.write_cancellation_log(input_file, output_dir, file_extension, custom_delimiter, 
+                                           analysis_rows_counted, 0, [], "during analysis", part_num)
+                self.root.after(0, lambda: self.show_cancelled())
+                return
+
             # Second pass: actual splitting with progress tracking
-            part_num = 1
-            base_filename = os.path.splitext(os.path.basename(input_file))[0]
             max_size_bytes = size_or_rows * 1024 * 1024 if mode == "size" else None
             max_rows = size_or_rows if mode == "rows" else None
             is_json_format = file_extension == ".json"
@@ -429,11 +445,7 @@ class FileSplitterApp:
                 reader = csv.reader(infile, delimiter=detected_delimiter)
                 header = next(reader)
 
-                input_data_row_count = 0
-                output_data_row_count = 0
-                per_file_row_counts = []
                 processed_rows = 0
-
                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                 
                 if is_json_format:
@@ -452,10 +464,18 @@ class FileSplitterApp:
 
                 for row in reader:
                     if self.cancel_event.is_set():
+                        cancelled = True
                         if not is_json_format:
                             outfile.close()
-                        self.root.after(0, lambda: self.show_cancelled())
-                        return
+                        # Write partial file counts for logging
+                        if current_rows > 0:
+                            if is_json_format and current_json_data:
+                                # Write remaining JSON data before cancelling
+                                with open(output_path, 'w', encoding='utf-8') as json_file:
+                                    json.dump(current_json_data, json_file, separators=(',', ':'))
+                            per_file_row_counts.append(current_rows)
+                            output_data_row_count += current_rows
+                        break
 
                     input_data_row_count += 1
                     processed_rows += 1
@@ -522,7 +542,15 @@ class FileSplitterApp:
                         current_size = outfile.tell()
                         current_rows += 1
 
-                # Handle the last file
+                # If cancelled during splitting, write cancellation log
+                if cancelled:
+                    self.write_cancellation_log(input_file, output_dir, file_extension, custom_delimiter, 
+                                               input_data_row_count, output_data_row_count, per_file_row_counts, 
+                                               "during file splitting", part_num)
+                    self.root.after(0, lambda: self.show_cancelled())
+                    return
+
+                # Handle the last file (normal completion)
                 if is_json_format:
                     if current_json_data:  # Write remaining data
                         with open(output_path, 'w', encoding='utf-8') as json_file:
@@ -541,40 +569,10 @@ class FileSplitterApp:
                 # Final progress update
                 self.update_progress(total_rows, total_rows, output_path, part_num)
 
-            if self.cancel_event.is_set():
-                self.root.after(0, lambda: self.show_cancelled())
-                return
-
-            # Create log file
+            # Create log file for successful completion
             if self.create_log.get():
-                log_path = os.path.join(output_dir, "log.txt")
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-                input_file_size = os.path.getsize(input_file)
-
-                with open(log_path, 'a', encoding='utf-8') as log_file:
-                    log_file.write(f"\n")
-                    log_file.write(f"File Splitter Log\n")
-                    log_file.write(f"Timestamp: {timestamp}\n")
-                    log_file.write(f"Input File: {input_file}\n")
-                    log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
-                    log_file.write(f"Total Data Rows in Input File: {input_data_row_count:,}\n")
-                    log_file.write(f"Total Parts Created: {part_num}\n")
-                    log_file.write(f"Output Format: {file_extension}\n\n")
-
-                    for i in range(part_num):
-                        part_filename = os.path.join(output_dir, f"{base_filename}_{i+1}{file_extension}")
-                        part_size = os.path.getsize(part_filename)
-                        row_count = per_file_row_counts[i]
-                        log_file.write(f"Part {i+1}: {row_count} data rows, {part_size:,} bytes\n")
-
-                    log_file.write(f"\nTotal Data Rows in Split Files: {output_data_row_count:,}\n")
-                    if not is_json_format:
-                        log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
-                    if input_data_row_count == output_data_row_count:
-                        log_file.write("Validation: PASS ✅\n")
-                    else:
-                        log_file.write("Validation: FAIL ❌\n")
-                    log_file.write(f"\n============================================================\n")
+                self.write_completion_log(input_file, output_dir, file_extension, custom_delimiter,
+                                        input_data_row_count, output_data_row_count, per_file_row_counts, part_num)
             
             self.root.after(0, lambda: self.show_success(part_num, output_dir))
             
@@ -582,6 +580,74 @@ class FileSplitterApp:
             self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}"))
         finally:
             self.root.after(0, self.reset_ui)
+
+    def write_cancellation_log(self, input_file, output_dir, file_extension, custom_delimiter, 
+                              input_rows, output_rows, per_file_row_counts, cancel_phase, parts_created):
+        """Write log entry for cancelled operations"""
+        if not self.create_log.get():
+            return
+            
+        log_path = os.path.join(output_dir, "log.txt")
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        input_file_size = os.path.getsize(input_file)
+        base_filename = os.path.splitext(os.path.basename(input_file))[0]
+
+        with open(log_path, 'a', encoding='utf-8') as log_file:
+            log_file.write(f"\n")
+            log_file.write(f"File Splitter Log - CANCELLED\n")
+            log_file.write(f"Timestamp: {timestamp}\n")
+            log_file.write(f"Input File: {input_file}\n")
+            log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
+            log_file.write(f"Operation cancelled {cancel_phase}\n")
+            log_file.write(f"Total Data Rows Processed: {input_rows:,}\n")
+            log_file.write(f"Partial Parts Created: {len(per_file_row_counts)}\n")
+            log_file.write(f"Output Format: {file_extension}\n\n")
+
+            # Log any partial files that were created
+            for i, row_count in enumerate(per_file_row_counts):
+                part_filename = os.path.join(output_dir, f"{base_filename}_{i+1}{file_extension}")
+                if os.path.exists(part_filename):
+                    part_size = os.path.getsize(part_filename)
+                    log_file.write(f"Partial File {i+1}: {row_count} data rows, {part_size:,} bytes\n")
+
+            log_file.write(f"\nTotal Data Rows in Partial Files: {output_rows:,}\n")
+            if file_extension != ".json":
+                log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
+            log_file.write("Validation: FAIL ❌ (Operation Cancelled)\n")
+            log_file.write(f"\n============================================================\n")
+
+    def write_completion_log(self, input_file, output_dir, file_extension, custom_delimiter,
+                           input_data_row_count, output_data_row_count, per_file_row_counts, part_num):
+        """Write log entry for successful completion"""
+        log_path = os.path.join(output_dir, "log.txt")
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        input_file_size = os.path.getsize(input_file)
+        base_filename = os.path.splitext(os.path.basename(input_file))[0]
+
+        with open(log_path, 'a', encoding='utf-8') as log_file:
+            log_file.write(f"\n")
+            log_file.write(f"File Splitter Log\n")
+            log_file.write(f"Timestamp: {timestamp}\n")
+            log_file.write(f"Input File: {input_file}\n")
+            log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
+            log_file.write(f"Total Data Rows in Input File: {input_data_row_count:,}\n")
+            log_file.write(f"Total Parts Created: {part_num}\n")
+            log_file.write(f"Output Format: {file_extension}\n\n")
+
+            for i in range(part_num):
+                part_filename = os.path.join(output_dir, f"{base_filename}_{i+1}{file_extension}")
+                part_size = os.path.getsize(part_filename)
+                row_count = per_file_row_counts[i]
+                log_file.write(f"Part {i+1}: {row_count} data rows, {part_size:,} bytes\n")
+
+            log_file.write(f"\nTotal Data Rows in Split Files: {output_data_row_count:,}\n")
+            if file_extension != ".json":
+                log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
+            if input_data_row_count == output_data_row_count:
+                log_file.write("Validation: PASS ✅\n")
+            else:
+                log_file.write("Validation: FAIL ❌\n")
+            log_file.write(f"\n============================================================\n")
 
     def show_success(self, parts, directory):
         elapsed_time = time.time() - self.start_time

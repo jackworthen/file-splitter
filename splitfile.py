@@ -18,7 +18,7 @@ class FileSplitterApp:
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
         
-        self.root.geometry("450x680")
+        self.root.geometry("450x710")
         self.root.resizable(False, False)
         
         # Configure style
@@ -48,6 +48,12 @@ class FileSplitterApp:
         self.total_rows = tk.StringVar(value="")
         self.progress_percentage = tk.StringVar(value="")
         self.output_file_type = tk.StringVar(value="")
+        self.file_count = tk.StringVar(value="")  # New variable for file count
+
+        # Validation tracking
+        self.input_row_count = 0
+        self.output_row_count = 0
+        self.current_part_num = 0  # Track current part number
 
         self.create_menu()
         self.create_widgets()
@@ -85,6 +91,12 @@ class FileSplitterApp:
                        background="#f8f9fa",
                        relief="solid",
                        borderwidth=1)
+        style.configure("ValidationPass.TLabel",
+                       font=("Segoe UI", 14, "bold"),
+                       foreground="#27ae60")  # Green for pass
+        style.configure("ValidationFail.TLabel",
+                       font=("Segoe UI", 14, "bold"),
+                       foreground="#e74c3c")  # Red for fail
 
     def create_menu(self):
         menubar = Menu(self.root)
@@ -155,41 +167,32 @@ class FileSplitterApp:
         self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", 
                                             variable=self.use_custom_delim, command=self.toggle_delim_fields)
         self.delim_checkbox.state(["disabled"])
-        self.delim_checkbox.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w")
+        self.delim_checkbox.grid(row=2, column=0, pady=(10, 0), sticky="w")
+
+        # New delimiter entry - directly to the right of checkbox
+        self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5, state="disabled")
+        self.set_delim_entry.config(validate="key", 
+                                  validatecommand=(self.root.register(self.validate_delimiter), "%P"))
+        self.set_delim_entry.grid(row=2, column=1, pady=(10, 0), sticky="w", padx=(10, 0))
 
         self.delim_label = ttk.Label(settings_frame, text="Current Delimiter:")
         self.delim_display = ttk.Label(settings_frame, textvariable=self.detected_delimiter)
-        self.set_delim_label = ttk.Label(settings_frame, text="New Delimiter:")
-        self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5)
-        self.set_delim_entry.config(validate="key", 
-                                  validatecommand=(self.root.register(self.validate_delimiter), "%P"))
 
         self.delim_label.grid(row=3, column=0, sticky="w")
         self.delim_display.grid(row=3, column=1, sticky="w")
-        self.set_delim_label.grid(row=4, column=0, sticky="w")
-        self.set_delim_entry.grid(row=4, column=1, sticky="w")
         
         # Initially hide delimiter fields
         self.delim_label.grid_remove()
         self.delim_display.grid_remove()
-        self.set_delim_label.grid_remove()
-        self.set_delim_entry.grid_remove()
         settings_frame.columnconfigure(0, weight=1)
 
-        # Progress Section
-        progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding=10, style="Bold.TLabelframe")
-        progress_frame.grid(row=3, column=0, columnspan=3, pady=(0, 10), sticky="ew")
-        
-        # Progress bar with percentage
-        self.progress = ttk.Progressbar(progress_frame, mode='determinate')
-        self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=(0, 10))
-        
-        self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_percentage, width=8)
-        self.progress_label.grid(row=0, column=1, pady=(0, 10))
+        # Stats Section
+        stats_frame_outer = ttk.LabelFrame(main_frame, text="Statistics", padding=10, style="Bold.TLabelframe")
+        stats_frame_outer.grid(row=3, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
         # Stats display
-        stats_frame = ttk.Frame(progress_frame, style="StatsFrame.TFrame", padding=10)
-        stats_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+        stats_frame = ttk.Frame(stats_frame_outer, style="StatsFrame.TFrame", padding=10)
+        stats_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
         
         # Create a vertical layout for stats
         stats_container = ttk.Frame(stats_frame)
@@ -197,31 +200,57 @@ class FileSplitterApp:
         stats_frame.columnconfigure(0, weight=1)
         stats_container.columnconfigure(1, weight=1)
         
-        # Total Rows
+        # Total Rows (row=0)
         ttk.Label(stats_container, text="Total Rows:", style="Stats.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
         self.total_rows_label = ttk.Label(stats_container, textvariable=self.total_rows, style="StatsAnalyzing.TLabel", width=15, anchor="w")
         self.total_rows_label.grid(row=0, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
         
-        # Current File  
-        ttk.Label(stats_container, text="Current File:", style="Stats.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
-        current_file_label = ttk.Label(stats_container, textvariable=self.current_file, style="StatsAnalyzing.TLabel", width=15, anchor="w")
-        current_file_label.grid(row=1, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
-        
-        # Rows Processed
-        ttk.Label(stats_container, text="Rows Processed:", style="Stats.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
+        # Rows Processed (row=1) - moved to be directly below Total Rows
+        ttk.Label(stats_container, text="Rows Processed:", style="Stats.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
         rows_processed_label = ttk.Label(stats_container, textvariable=self.rows_processed, style="StatsAnalyzing.TLabel", width=15, anchor="w")
-        rows_processed_label.grid(row=2, column=1, sticky="ew", pady=(0, 5))
+        rows_processed_label.grid(row=1, column=1, sticky="ew", pady=(0, 5))
         
-        # Output File Type
-        ttk.Label(stats_container, text="Output File Type:", style="Stats.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 5))
+        # Current File (row=2) - moved down
+        ttk.Label(stats_container, text="Current File:", style="Stats.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
+        current_file_label = ttk.Label(stats_container, textvariable=self.current_file, style="StatsAnalyzing.TLabel", width=15, anchor="w")
+        current_file_label.grid(row=2, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
+        
+        # File Count (row=3) - new metric below Current File
+        ttk.Label(stats_container, text="File Count:", style="Stats.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
+        file_count_label = ttk.Label(stats_container, textvariable=self.file_count, style="StatsAnalyzing.TLabel", width=15, anchor="w")
+        file_count_label.grid(row=3, column=1, sticky="ew", pady=(0, 5))
+        
+        # Output File Type (row=4)
+        ttk.Label(stats_container, text="Output File Type:", style="Stats.TLabel").grid(row=4, column=0, sticky="w", padx=(0, 5))
         output_type_label = ttk.Label(stats_container, textvariable=self.output_file_type, style="StatsAnalyzing.TLabel", width=15, anchor="w")
-        output_type_label.grid(row=3, column=1, sticky="ew")
+        output_type_label.grid(row=4, column=1, sticky="ew")
         
+        stats_frame_outer.columnconfigure(0, weight=1)
+
+        # Progress Section - moved to be directly above buttons
+        progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding=10, style="Bold.TLabelframe")
+        progress_frame.grid(row=4, column=0, columnspan=3, pady=(0, 10), sticky="ew")
+        
+        # Progress bar with percentage/validation status
+        self.progress = ttk.Progressbar(progress_frame, mode='determinate')
+        self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=(0, 10))
+        
+        # This label will show percentage during operation and checkmark after completion
+        self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_percentage, width=10, anchor="center")
+        self.progress_label.grid(row=0, column=1, pady=(0, 10), sticky="ew")
+        
+        # Validation status label (will be used for checkmarks)
+        self.validation_label = ttk.Label(progress_frame, text="", width=10, style="ValidationPass.TLabel", anchor="center")
+        self.validation_label.grid(row=0, column=1, pady=(0, 10), sticky="ew")
+        self.validation_label.grid_remove()  # Initially hidden
+        
+        # Configure column weights to prevent resizing
         progress_frame.columnconfigure(0, weight=1)
+        progress_frame.columnconfigure(1, weight=0, minsize=80)
 
         # Control Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=4, column=0, columnspan=3, pady=(0, 10))
+        button_frame.grid(row=5, column=0, columnspan=3, pady=(0, 10))
         
         self.button_start = ttk.Button(button_frame, text="Run", command=self.start_threaded_split)
         self.button_start.grid(row=0, column=0, padx=(0, 10))
@@ -280,11 +309,19 @@ class FileSplitterApp:
                 self.delim_checkbox.state(["!disabled"])
 
     def toggle_delim_fields(self):
-        show = (self.use_custom_delim.get() and 
-                self.input_file.get() and 
-                self.file_type.get() != ".json")
-        for widget in [self.delim_label, self.delim_display, self.set_delim_label, self.set_delim_entry]:
-            widget.grid() if show else widget.grid_remove()
+        show_current_delim = (self.use_custom_delim.get() and 
+                             self.input_file.get() and 
+                             self.file_type.get() != ".json")
+        
+        # Show/hide current delimiter display only when custom delimiter is checked
+        for widget in [self.delim_label, self.delim_display]:
+            widget.grid() if show_current_delim else widget.grid_remove()
+        
+        # Enable/disable the new delimiter entry based on checkbox state
+        if self.use_custom_delim.get() and self.input_file.get() and self.file_type.get() != ".json":
+            self.set_delim_entry.config(state="normal")
+        else:
+            self.set_delim_entry.config(state="disabled")
 
     def start_threaded_split(self):
         file_path = self.input_file.get()
@@ -312,6 +349,11 @@ class FileSplitterApp:
         self.is_running = True
         self.start_time = time.time()
         
+        # Reset validation tracking
+        self.input_row_count = 0
+        self.output_row_count = 0
+        self.current_part_num = 0
+        
         # Update UI state
         self.button_start.config(state=tk.DISABLED)
         self.button_cancel.config(state=tk.NORMAL)
@@ -320,7 +362,12 @@ class FileSplitterApp:
         self.total_rows.set("")
         self.current_file.set("Initializing...")
         self.rows_processed.set("0")
+        self.file_count.set("0")
         self.output_file_type.set(extension.upper())
+        
+        # Show percentage label, hide validation label
+        self.validation_label.grid_remove()
+        self.progress_label.grid()
 
         delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
         thread = threading.Thread(target=self.split_file, 
@@ -334,7 +381,7 @@ class FileSplitterApp:
             self.current_file.set("Cancelling...")
             self.button_cancel.config(state=tk.DISABLED)
 
-    def update_progress(self, current_row, total_rows, current_filename):
+    def update_progress(self, current_row, total_rows, current_filename, part_num=1):
         """Update progress from worker thread"""
         if total_rows > 0:
             percentage = min(100, (current_row / total_rows) * 100)
@@ -344,6 +391,7 @@ class FileSplitterApp:
             self.root.after(0, lambda: self.progress_percentage.set(f"{percentage:.1f}%"))
             self.root.after(0, lambda: self.current_file.set(os.path.basename(current_filename)))
             self.root.after(0, lambda: self.rows_processed.set(f"{current_row:,}"))
+            self.root.after(0, lambda: self.file_count.set(str(part_num)))
 
     def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension, custom_delimiter):
         try:
@@ -414,7 +462,7 @@ class FileSplitterApp:
                     
                     # Update progress every 100 rows
                     if processed_rows % 100 == 0:
-                        self.update_progress(processed_rows, total_rows, output_path)
+                        self.update_progress(processed_rows, total_rows, output_path, part_num)
                     
                     if is_json_format:
                         # Convert row to JSON object
@@ -486,8 +534,12 @@ class FileSplitterApp:
                     per_file_row_counts.append(current_rows)
                     output_data_row_count += current_rows
 
+                # Store row counts for validation
+                self.input_row_count = input_data_row_count
+                self.output_row_count = output_data_row_count
+
                 # Final progress update
-                self.update_progress(total_rows, total_rows, output_path)
+                self.update_progress(total_rows, total_rows, output_path, part_num)
 
             if self.cancel_event.is_set():
                 self.root.after(0, lambda: self.show_cancelled())
@@ -537,11 +589,24 @@ class FileSplitterApp:
         if elapsed_time >= 60:
             time_str = f"{elapsed_time/60:.1f} minutes"
         
-        messagebox.showinfo("Success", 
-                          f"✅ File successfully split into {parts} parts!\n\n"
-                          f"Time taken: {time_str}\n"
-                          f"Output location:\n{directory}")
+        # Set validation checkmark based on row count comparison
+        if self.input_row_count == self.output_row_count:
+            checkmark = "✅"
+            style = "ValidationPass.TLabel"
+        else:
+            checkmark = "❌" 
+            style = "ValidationFail.TLabel"
         
+        # Update UI to show validation checkmark
+        def show_checkmark():
+            self.progress_label.grid_remove()
+            self.validation_label.configure(text=checkmark, style=style)
+            self.validation_label.grid()
+        
+        # Schedule the checkmark display
+        self.root.after(100, show_checkmark)
+        
+        # Open directory if requested (removed success popup message)
         if self.open_dir_after_split.get():
             try:
                 os.startfile(directory)
@@ -554,6 +619,15 @@ class FileSplitterApp:
                     subprocess.call(["xdg-open", directory])
 
     def show_cancelled(self):
+        # Show red X checkmark for cancelled operation
+        def show_cancel_checkmark():
+            self.progress_label.grid_remove()
+            self.validation_label.configure(text="❌", style="ValidationFail.TLabel")
+            self.validation_label.grid()
+        
+        # Schedule the checkmark display
+        self.root.after(100, show_cancel_checkmark)
+        
         messagebox.showinfo("Cancelled", "❌ Operation was cancelled by user.")
 
     def reset_ui(self):
@@ -562,6 +636,9 @@ class FileSplitterApp:
         self.button_cancel.config(state=tk.DISABLED)
         self.progress['value'] = 0
         self.progress_percentage.set("")
+        # Show percentage label, hide validation label for next operation
+        self.validation_label.grid_remove()
+        self.progress_label.grid()
         # Keep stats values visible after completion for user validation
 
     def validate_delimiter(self, text):
@@ -576,7 +653,11 @@ class FileSplitterApp:
             self.total_rows.set("")
             self.current_file.set("")
             self.rows_processed.set("")
+            self.file_count.set("")
             self.output_file_type.set("")
+            # Reset to percentage label
+            self.validation_label.grid_remove()
+            self.progress_label.grid()
         else:
             # Enable delimiter checkbox only if not JSON format
             if self.file_type.get() != ".json":
@@ -585,7 +666,11 @@ class FileSplitterApp:
             self.total_rows.set("")
             self.current_file.set("")
             self.rows_processed.set("")
+            self.file_count.set("")
             self.output_file_type.set("")
+            # Reset to percentage label
+            self.validation_label.grid_remove()
+            self.progress_label.grid()
 
 if __name__ == "__main__":
     root = tk.Tk()

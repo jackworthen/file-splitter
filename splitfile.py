@@ -827,6 +827,8 @@ class FileSplitterApp:
             log_file.write(f"Total Data Rows Processed: {input_rows:,}\n")
             log_file.write(f"Partial Parts Created: {len(per_file_row_counts)}\n")
             log_file.write(f"Output Format: {file_extension}\n")
+            if file_extension != ".json":
+                log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
@@ -846,8 +848,6 @@ class FileSplitterApp:
                     log_file.write(f"Partial File {i+1}: {row_count} data rows, {part_size:,} bytes\n")
 
             log_file.write(f"\nTotal Data Rows in Partial Files: {output_rows:,}\n")
-            if file_extension != ".json":
-                log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
             log_file.write("Validation: FAIL ❌ (Operation Cancelled)\n")
             log_file.write(f"\n============================================================\n")
 
@@ -868,6 +868,8 @@ class FileSplitterApp:
             log_file.write(f"Total Data Rows in Input File: {input_data_row_count:,}\n")
             log_file.write(f"Total Parts Created: {part_num}\n")
             log_file.write(f"Output Format: {file_extension}\n")
+            if file_extension != ".json":
+                log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
@@ -886,8 +888,6 @@ class FileSplitterApp:
                 log_file.write(f"Part {i+1}: {row_count} data rows, {part_size:,} bytes\n")
 
             log_file.write(f"\nTotal Data Rows in Split Files: {output_data_row_count:,}\n")
-            if file_extension != ".json":
-                log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
             if input_data_row_count == output_data_row_count:
                 log_file.write("Validation: PASS ✅\n")
             else:

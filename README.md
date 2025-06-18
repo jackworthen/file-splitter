@@ -26,7 +26,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **🚀 Threaded Processing**: Non-blocking UI during file operations
 - **📊 Real-time Statistics**: Live dashboard showing progress, file count, and processing stats
 - **🎯 Progress Tracking**: Visual progress bar with percentage completion
-- **🔄 Reset Functionality**: Clear all statistics and start fresh
+- **🔄 Reset Functionality**: Clear all statistics and Split Settings to start fresh with existing source file
 - **⌨️ Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help
 - **🎨 Visual Feedback**: Color-coded progress indicators for success/failure
 - **📋 Enhanced Logging**: Comprehensive logs with file details, column selection, and validation results
@@ -109,7 +109,7 @@ Click **Run** and watch the real-time progress! ✨
 - **Live Statistics**: Watch total rows, processed rows, current file, and file count
 - **Progress Bar**: Visual indicator with percentage completion
 - **Cancel Anytime**: Stop the operation if needed - partial files are preserved
-- **Reset**: Clear all statistics and start fresh
+- **Reset**: Clear all statistics and Split Settings
 
 ---
 

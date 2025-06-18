@@ -415,7 +415,10 @@ class FileSplitterApp:
         self.button_cancel.grid(row=0, column=1, padx=(0, 10))
         
         self.button_reset = ttk.Button(button_frame, text="Reset", command=self.reset_stats_and_progress, state="disabled")
-        self.button_reset.grid(row=0, column=2)
+        self.button_reset.grid(row=0, column=2, padx=(0, 10))
+        
+        self.button_exit = ttk.Button(button_frame, text="Exit", command=self.root.quit)
+        self.button_exit.grid(row=0, column=3)
 
         main_frame.columnconfigure(0, weight=1)
 

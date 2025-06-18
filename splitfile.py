@@ -939,7 +939,7 @@ class FileSplitterApp:
         # Keep progress bar and percentage visible after completion
 
     def reset_stats_and_progress(self):
-        """Reset only statistics and progress, keeping all other settings intact"""
+        """Reset statistics, progress, and split settings, keeping source file and output directory"""
         # Reset progress bar and percentage
         self.progress['value'] = 0
         self.progress_percentage.set("")
@@ -956,6 +956,22 @@ class FileSplitterApp:
         self.input_row_count = 0
         self.output_row_count = 0
         self.current_part_num = 0
+        
+        # Reset Split Settings (but keep source file and output directory)
+        self.split_mode.set("size")  # Reset to default split mode
+        self.max_size.set("")  # Clear size value
+        self.max_rows.set("")  # Clear rows value
+        self.file_type.set(".csv")  # Reset to default file type
+        self.use_custom_delim.set(False)  # Reset custom delimiter checkbox
+        self.custom_delimiter.set("")  # Clear custom delimiter value
+        
+        # Reset column selection to all columns (if file is selected)
+        if self.available_columns:
+            self.selected_columns = self.available_columns.copy()
+        
+        # Update UI states
+        self.toggle_mode()  # Update entry states based on split mode
+        self.toggle_delim_fields()  # Update delimiter field states
         
         # Disable Reset button again
         self.button_reset.config(state="disabled")

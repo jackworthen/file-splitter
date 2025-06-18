@@ -7,6 +7,157 @@ import webbrowser
 import time
 import json
 
+class ColumnSelectionWindow:
+    def __init__(self, parent, columns, selected_columns):
+        self.parent = parent
+        self.columns = columns
+        self.selected_columns = selected_columns.copy()
+        self.result = None
+        
+        # Create window
+        self.window = tk.Toplevel(parent)
+        self.window.title("Select Columns to Include")
+        self.window.geometry("600x400")
+        self.window.resizable(True, True)
+        self.window.transient(parent)
+        self.window.grab_set()
+        
+        # Center the window
+        self.window.update_idletasks()
+        x = (self.window.winfo_screenwidth() // 2) - (600 // 2)
+        y = (self.window.winfo_screenheight() // 2) - (400 // 2)
+        self.window.geometry(f"600x400+{x}+{y}")
+        
+        self.create_widgets()
+        self.populate_lists()
+        
+    def create_widgets(self):
+        main_frame = ttk.Frame(self.window, padding="15")
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        self.window.columnconfigure(0, weight=1)
+        self.window.rowconfigure(0, weight=1)
+        
+        # Title
+        title_label = ttk.Label(main_frame, text="Select which columns to include in split files:", 
+                               font=("Segoe UI", 10, "bold"))
+        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 15), sticky="w")
+        
+        # Left side - Excluded columns
+        excluded_frame = ttk.LabelFrame(main_frame, text="Excluded Columns", padding=10)
+        excluded_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 5))
+        
+        self.excluded_listbox = tk.Listbox(excluded_frame, selectmode=tk.EXTENDED)
+        excluded_scrollbar = ttk.Scrollbar(excluded_frame, orient="vertical", command=self.excluded_listbox.yview)
+        self.excluded_listbox.configure(yscrollcommand=excluded_scrollbar.set)
+        
+        self.excluded_listbox.grid(row=0, column=0, sticky="nsew")
+        excluded_scrollbar.grid(row=0, column=1, sticky="ns")
+        excluded_frame.columnconfigure(0, weight=1)
+        excluded_frame.rowconfigure(0, weight=1)
+        
+        # Center buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=1, column=1, sticky="ns", padx=10)
+        
+        # Add some vertical spacing
+        ttk.Label(button_frame, text="").grid(row=0, column=0, pady=20)
+        
+        self.include_button = ttk.Button(button_frame, text="Include →", command=self.include_selected)
+        self.include_button.grid(row=1, column=0, pady=5, sticky="ew")
+        
+        self.exclude_button = ttk.Button(button_frame, text="← Exclude", command=self.exclude_selected)
+        self.exclude_button.grid(row=2, column=0, pady=5, sticky="ew")
+        
+        ttk.Separator(button_frame, orient="horizontal").grid(row=3, column=0, pady=10, sticky="ew")
+        
+        self.include_all_button = ttk.Button(button_frame, text="Include All", command=self.include_all)
+        self.include_all_button.grid(row=4, column=0, pady=5, sticky="ew")
+        
+        self.exclude_all_button = ttk.Button(button_frame, text="Exclude All", command=self.exclude_all)
+        self.exclude_all_button.grid(row=5, column=0, pady=5, sticky="ew")
+        
+        # Right side - Included columns
+        included_frame = ttk.LabelFrame(main_frame, text="Included Columns", padding=10)
+        included_frame.grid(row=1, column=2, sticky="nsew", padx=(5, 0))
+        
+        self.included_listbox = tk.Listbox(included_frame, selectmode=tk.EXTENDED)
+        included_scrollbar = ttk.Scrollbar(included_frame, orient="vertical", command=self.included_listbox.yview)
+        self.included_listbox.configure(yscrollcommand=included_scrollbar.set)
+        
+        self.included_listbox.grid(row=0, column=0, sticky="nsew")
+        included_scrollbar.grid(row=0, column=1, sticky="ns")
+        included_frame.columnconfigure(0, weight=1)
+        included_frame.rowconfigure(0, weight=1)
+        
+        # Bottom buttons
+        bottom_frame = ttk.Frame(main_frame)
+        bottom_frame.grid(row=2, column=0, columnspan=3, pady=(15, 0), sticky="ew")
+        
+        ttk.Button(bottom_frame, text="OK", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
+        ttk.Button(bottom_frame, text="Cancel", command=self.cancel_clicked).grid(row=0, column=1)
+        
+        # Configure grid weights
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.columnconfigure(2, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+        
+    def populate_lists(self):
+        """Populate the listboxes with columns"""
+        excluded_columns = [col for col in self.columns if col not in self.selected_columns]
+        
+        self.excluded_listbox.delete(0, tk.END)
+        for col in excluded_columns:
+            self.excluded_listbox.insert(tk.END, col)
+            
+        self.included_listbox.delete(0, tk.END)
+        for col in self.selected_columns:
+            self.included_listbox.insert(tk.END, col)
+    
+    def include_selected(self):
+        """Move selected columns from excluded to included"""
+        selected_indices = self.excluded_listbox.curselection()
+        selected_items = [self.excluded_listbox.get(i) for i in selected_indices]
+        
+        for item in selected_items:
+            self.selected_columns.append(item)
+            
+        self.populate_lists()
+    
+    def exclude_selected(self):
+        """Move selected columns from included to excluded"""
+        selected_indices = self.included_listbox.curselection()
+        selected_items = [self.included_listbox.get(i) for i in selected_indices]
+        
+        for item in selected_items:
+            if item in self.selected_columns:
+                self.selected_columns.remove(item)
+                
+        self.populate_lists()
+    
+    def include_all(self):
+        """Move all columns to included"""
+        self.selected_columns = self.columns.copy()
+        self.populate_lists()
+    
+    def exclude_all(self):
+        """Move all columns to excluded"""
+        self.selected_columns = []
+        self.populate_lists()
+    
+    def ok_clicked(self):
+        """User clicked OK"""
+        if not self.selected_columns:
+            messagebox.showwarning("Warning", "You must include at least one column.")
+            return
+            
+        self.result = self.selected_columns.copy()
+        self.window.destroy()
+    
+    def cancel_clicked(self):
+        """User clicked Cancel"""
+        self.result = None
+        self.window.destroy()
+
 class FileSplitterApp:
     def __init__(self, root):
         self.root = root
@@ -18,7 +169,7 @@ class FileSplitterApp:
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
         
-        self.root.geometry("450x720")
+        self.root.geometry("450x750")  # Increased height slightly for new button
         self.root.resizable(False, False)
         
         # Configure style
@@ -37,6 +188,10 @@ class FileSplitterApp:
         self.open_dir_after_split = tk.BooleanVar(value=False)
         self.create_log = tk.BooleanVar(value=True)
 
+        # Column selection variables
+        self.available_columns = []
+        self.selected_columns = []
+
         # Progress tracking
         self.cancel_event = threading.Event()
         self.is_running = False
@@ -48,12 +203,12 @@ class FileSplitterApp:
         self.total_rows = tk.StringVar(value="")
         self.progress_percentage = tk.StringVar(value="")
         self.output_file_type = tk.StringVar(value="")
-        self.file_count = tk.StringVar(value="")  # New variable for file count
+        self.file_count = tk.StringVar(value="")
 
         # Validation tracking
         self.input_row_count = 0
         self.output_row_count = 0
-        self.current_part_num = 0  # Track current part number
+        self.current_part_num = 0
 
         self.create_menu()
         self.create_widgets()
@@ -83,7 +238,7 @@ class FileSplitterApp:
                        borderwidth=1)
         style.configure("StatsAnalyzing.TLabel", 
                        font=("Segoe UI", 10, "bold"),
-                       foreground="#3498db",  # Blue color for analyzing
+                       foreground="#3498db",
                        background="#ecf0f1",
                        relief="flat",
                        borderwidth=1)
@@ -93,10 +248,10 @@ class FileSplitterApp:
                        borderwidth=1)
         style.configure("ProgressSuccess.TLabel",
                        font=("Segoe UI", 10, "bold"),
-                       foreground="#27ae60")  # Green for success
+                       foreground="#27ae60")
         style.configure("ProgressFail.TLabel",
                        font=("Segoe UI", 10, "bold"),
-                       foreground="#e74c3c")  # Red for fail/cancel
+                       foreground="#e74c3c")
 
     def create_menu(self):
         menubar = Menu(self.root)
@@ -171,7 +326,6 @@ class FileSplitterApp:
         self.delim_checkbox.state(["disabled"])
         self.delim_checkbox.grid(row=2, column=0, pady=(10, 0), sticky="w")
 
-        # New delimiter entry - directly to the right of checkbox
         self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5, state="disabled")
         self.set_delim_entry.config(validate="key", 
                                   validatecommand=(self.root.register(self.validate_delimiter), "%P"))
@@ -182,6 +336,11 @@ class FileSplitterApp:
 
         self.delim_label.grid(row=3, column=0, sticky="w")
         self.delim_display.grid(row=3, column=1, sticky="w")
+        
+        # Column Selection Button - NEW
+        self.column_select_button = ttk.Button(settings_frame, text="Select Columns...", 
+                                             command=self.open_column_selection, state="disabled")
+        self.column_select_button.grid(row=4, column=0, pady=(10, 0), sticky="w")
         
         # Initially hide delimiter fields
         self.delim_label.grid_remove()
@@ -207,17 +366,17 @@ class FileSplitterApp:
         self.total_rows_label = ttk.Label(stats_container, textvariable=self.total_rows, style="StatsAnalyzing.TLabel", width=15, anchor="w")
         self.total_rows_label.grid(row=0, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
         
-        # Rows Processed (row=1) - moved to be directly below Total Rows
+        # Rows Processed (row=1)
         ttk.Label(stats_container, text="Rows Processed:", style="Stats.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
         rows_processed_label = ttk.Label(stats_container, textvariable=self.rows_processed, style="StatsAnalyzing.TLabel", width=15, anchor="w")
         rows_processed_label.grid(row=1, column=1, sticky="ew", pady=(0, 5))
         
-        # Current File (row=2) - moved down
+        # Current File (row=2)
         ttk.Label(stats_container, text="Current File:", style="Stats.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
         current_file_label = ttk.Label(stats_container, textvariable=self.current_file, style="StatsAnalyzing.TLabel", width=15, anchor="w")
         current_file_label.grid(row=2, column=1, sticky="ew", padx=(0, 0), pady=(0, 5))
         
-        # File Count (row=3) - new metric below Current File
+        # File Count (row=3)
         ttk.Label(stats_container, text="File Count:", style="Stats.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 5), pady=(0, 5))
         file_count_label = ttk.Label(stats_container, textvariable=self.file_count, style="StatsAnalyzing.TLabel", width=15, anchor="w")
         file_count_label.grid(row=3, column=1, sticky="ew", pady=(0, 5))
@@ -229,7 +388,7 @@ class FileSplitterApp:
         
         stats_frame_outer.columnconfigure(0, weight=1)
 
-        # Progress Section - moved to be directly above buttons
+        # Progress Section
         progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding=10, style="Bold.TLabelframe")
         progress_frame.grid(row=4, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
@@ -241,7 +400,7 @@ class FileSplitterApp:
         self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_percentage, width=10, anchor="center")
         self.progress_label.grid(row=0, column=1, pady=(0, 10), sticky="ew")
         
-        # Configure column weights to prevent resizing
+        # Configure column weights
         progress_frame.columnconfigure(0, weight=1)
         progress_frame.columnconfigure(1, weight=0, minsize=80)
 
@@ -271,6 +430,10 @@ class FileSplitterApp:
             self.output_dir.set(default_out.replace('\\', '/'))
             self.input_file.set(path)
             self.delim_checkbox.state(["!disabled"])
+            
+            # Load column headers
+            self.load_column_headers()
+            
             try:
                 with open(path, 'r', encoding='utf-8') as f:
                     sample = f.read(2048)
@@ -282,6 +445,48 @@ class FileSplitterApp:
                 print(f"Could not detect delimiter: {e}")
             if self.use_custom_delim.get():
                 self.toggle_delim_fields()
+
+    def load_column_headers(self):
+        """Load column headers from the selected file"""
+        if not self.input_file.get():
+            return
+            
+        try:
+            with open(self.input_file.get(), 'r', encoding='utf-8') as f:
+                sample = f.read(2048)
+                f.seek(0)
+                
+                # Detect delimiter
+                sniffer = csv.Sniffer()
+                try:
+                    dialect = sniffer.sniff(sample)
+                    delimiter = dialect.delimiter
+                except:
+                    delimiter = ','
+                
+                # Read header row
+                reader = csv.reader(f, delimiter=delimiter)
+                header = next(reader)
+                
+                self.available_columns = header
+                self.selected_columns = header.copy()  # By default, include all columns
+                
+        except Exception as e:
+            print(f"Error loading column headers: {e}")
+            self.available_columns = []
+            self.selected_columns = []
+
+    def open_column_selection(self):
+        """Open the column selection window"""
+        if not self.available_columns:
+            messagebox.showwarning("Warning", "No columns found in the selected file.")
+            return
+            
+        dialog = ColumnSelectionWindow(self.root, self.available_columns, self.selected_columns)
+        self.root.wait_window(dialog.window)
+        
+        if dialog.result is not None:
+            self.selected_columns = dialog.result
 
     def select_output_directory(self):
         path = filedialog.askdirectory(title="Select Output Directory")
@@ -359,7 +564,7 @@ class FileSplitterApp:
         self.button_cancel.config(state=tk.NORMAL)
         self.progress['value'] = 0
         self.progress_percentage.set("0%")
-        self.progress_label.configure(style="TLabel")  # Reset to default style
+        self.progress_label.configure(style="TLabel")
         self.total_rows.set("")
         self.current_file.set("Initializing...")
         self.rows_processed.set("0")
@@ -411,14 +616,23 @@ class FileSplitterApp:
             with open(input_file, 'r', newline='', encoding='utf-8') as infile:
                 detected_delimiter = self.detected_delimiter.get() or ','
                 reader = csv.reader(infile, delimiter=detected_delimiter)
-                next(reader)  # Skip header
+                header = next(reader)  # Read header
+                
+                # Filter header to only include selected columns
+                if self.selected_columns:
+                    header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
+                    filtered_header = [header[i] for i in header_indices]
+                else:
+                    header_indices = list(range(len(header)))
+                    filtered_header = header
+                
                 for _ in reader:
                     if self.cancel_event.is_set():
                         cancelled = True
                         analysis_rows_counted = total_rows
                         break
                     total_rows += 1
-                    if total_rows % 1000 == 0:  # Update every 1000 rows during analysis
+                    if total_rows % 1000 == 0:
                         self.root.after(0, lambda r=total_rows: self.total_rows.set(f"Analyzing... {r:,} rows"))
 
             if self.cancel_event.is_set() and not cancelled:
@@ -435,7 +649,7 @@ class FileSplitterApp:
                 self.root.after(0, lambda: self.show_cancelled())
                 return
 
-            # Second pass: actual splitting with progress tracking
+            # Second pass: actual splitting with progress tracking and column filtering
             max_size_bytes = size_or_rows * 1024 * 1024 if mode == "size" else None
             max_rows = size_or_rows if mode == "rows" else None
             is_json_format = file_extension == ".json"
@@ -444,6 +658,14 @@ class FileSplitterApp:
                 detected_delimiter = self.detected_delimiter.get() or ','
                 reader = csv.reader(infile, delimiter=detected_delimiter)
                 header = next(reader)
+                
+                # Filter header to only include selected columns
+                if self.selected_columns:
+                    header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
+                    filtered_header = [header[i] for i in header_indices]
+                else:
+                    header_indices = list(range(len(header)))
+                    filtered_header = header
 
                 processed_rows = 0
                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
@@ -458,7 +680,7 @@ class FileSplitterApp:
                     # For CSV/TXT/DAT, use the original method
                     outfile = open(output_path, 'w', newline='', encoding='utf-8')
                     writer = csv.writer(outfile, delimiter=custom_delimiter)
-                    writer.writerow(header)
+                    writer.writerow(filtered_header)  # Write filtered header
                     current_size = outfile.tell()
                     current_rows = 0
 
@@ -480,13 +702,16 @@ class FileSplitterApp:
                     input_data_row_count += 1
                     processed_rows += 1
                     
+                    # Filter row to only include selected columns
+                    filtered_row = [row[i] if i < len(row) else '' for i in header_indices]
+                    
                     # Update progress every 100 rows
                     if processed_rows % 100 == 0:
                         self.update_progress(processed_rows, total_rows, output_path, part_num)
                     
                     if is_json_format:
-                        # Convert row to JSON object
-                        row_dict = dict(zip(header, row))
+                        # Convert row to JSON object using filtered header and row
+                        row_dict = dict(zip(filtered_header, filtered_row))
                         current_json_data.append(row_dict)
                         current_rows += 1
                         
@@ -521,7 +746,7 @@ class FileSplitterApp:
                             current_rows = 0
                             estimated_size = 2  # Reset to "[]"
                     else:
-                        # Original CSV/TXT/DAT logic
+                        # Original CSV/TXT/DAT logic with filtered row
                         outfile.flush()
                         if (
                             (mode == "size" and current_size >= max_size_bytes) or
@@ -534,11 +759,11 @@ class FileSplitterApp:
                             output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                             outfile = open(output_path, 'w', newline='', encoding='utf-8')
                             writer = csv.writer(outfile, delimiter=custom_delimiter)
-                            writer.writerow(header)
+                            writer.writerow(filtered_header)  # Write filtered header
                             current_size = outfile.tell()
                             current_rows = 0
 
-                        writer.writerow(row)
+                        writer.writerow(filtered_row)  # Write filtered row
                         current_size = outfile.tell()
                         current_rows += 1
 
@@ -601,7 +826,15 @@ class FileSplitterApp:
             log_file.write(f"Operation cancelled {cancel_phase}\n")
             log_file.write(f"Total Data Rows Processed: {input_rows:,}\n")
             log_file.write(f"Partial Parts Created: {len(per_file_row_counts)}\n")
-            log_file.write(f"Output Format: {file_extension}\n\n")
+            log_file.write(f"Output Format: {file_extension}\n")
+            
+            # Log column filtering information
+            if len(self.selected_columns) < len(self.available_columns):
+                log_file.write(f"Columns Included: {len(self.selected_columns)} of {len(self.available_columns)}\n")
+                log_file.write(f"Selected Columns: {', '.join(self.selected_columns)}\n")
+            else:
+                log_file.write(f"All Columns Included: {len(self.available_columns)}\n")
+            log_file.write(f"\n")
 
             # Log any partial files that were created
             for i, row_count in enumerate(per_file_row_counts):
@@ -632,7 +865,15 @@ class FileSplitterApp:
             log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
             log_file.write(f"Total Data Rows in Input File: {input_data_row_count:,}\n")
             log_file.write(f"Total Parts Created: {part_num}\n")
-            log_file.write(f"Output Format: {file_extension}\n\n")
+            log_file.write(f"Output Format: {file_extension}\n")
+            
+            # Log column filtering information
+            if len(self.selected_columns) < len(self.available_columns):
+                log_file.write(f"Columns Included: {len(self.selected_columns)} of {len(self.available_columns)}\n")
+                log_file.write(f"Selected Columns: {', '.join(self.selected_columns)}\n")
+            else:
+                log_file.write(f"All Columns Included: {len(self.available_columns)}\n")
+            log_file.write(f"\n")
 
             for i in range(part_num):
                 part_filename = os.path.join(output_dir, f"{base_filename}_{i+1}{file_extension}")
@@ -720,8 +961,9 @@ class FileSplitterApp:
 
     def on_input_file_change(self, *args):
         if not self.input_file.get():
-            # Disable browse button when no file selected, but keep input box enabled
+            # Disable buttons when no file selected
             self.output_browse_button.config(state="disabled")
+            self.column_select_button.config(state="disabled")  # NEW
             self.output_dir.set("")  # Clear output directory
             
             self.delim_checkbox.state(["disabled"])
@@ -733,9 +975,14 @@ class FileSplitterApp:
             self.rows_processed.set("")
             self.file_count.set("")
             self.output_file_type.set("")
+            
+            # Clear column data
+            self.available_columns = []
+            self.selected_columns = []
         else:
-            # Enable browse button when file is selected
+            # Enable buttons when file is selected
             self.output_browse_button.config(state="normal")
+            self.column_select_button.config(state="normal")  # NEW
             
             # Enable delimiter checkbox only if not JSON format
             if self.file_type.get() != ".json":

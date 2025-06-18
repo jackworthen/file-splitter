@@ -830,8 +830,10 @@ class FileSplitterApp:
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
+                excluded_columns = [col for col in self.available_columns if col not in self.selected_columns]
                 log_file.write(f"Columns Included: {len(self.selected_columns)} of {len(self.available_columns)}\n")
-                log_file.write(f"Selected Columns: {', '.join(self.selected_columns)}\n")
+                log_file.write(f"Included Columns: {', '.join(self.selected_columns)}\n")
+                log_file.write(f"Excluded Columns: {', '.join(excluded_columns)}\n")
             else:
                 log_file.write(f"All Columns Included: {len(self.available_columns)}\n")
             log_file.write(f"\n")
@@ -869,8 +871,10 @@ class FileSplitterApp:
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
+                excluded_columns = [col for col in self.available_columns if col not in self.selected_columns]
                 log_file.write(f"Columns Included: {len(self.selected_columns)} of {len(self.available_columns)}\n")
-                log_file.write(f"Selected Columns: {', '.join(self.selected_columns)}\n")
+                log_file.write(f"Included Columns: {', '.join(self.selected_columns)}\n")
+                log_file.write(f"Excluded Columns: {', '.join(excluded_columns)}\n")
             else:
                 log_file.write(f"All Columns Included: {len(self.available_columns)}\n")
             log_file.write(f"\n")

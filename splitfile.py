@@ -16,7 +16,7 @@ class ColumnSelectionWindow:
         
         # Create window
         self.window = tk.Toplevel(parent)
-        self.window.title("Select Columns to Include")
+        self.window.title("Column Filter")
         self.window.geometry("600x400")
         self.window.resizable(True, True)
         self.window.transient(parent)
@@ -306,44 +306,44 @@ class FileSplitterApp:
         settings_frame = ttk.LabelFrame(main_frame, text="Split Settings", padding=10, style="Bold.TLabelframe")
         settings_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
-        # Split mode selection
+        # Column Selection Button - moved to top (row 0)
+        self.column_select_button = ttk.Button(settings_frame, text="Select Columns...", 
+                                             command=self.open_column_selection, state="disabled")
+        self.column_select_button.grid(row=0, column=0, pady=(0, 10), sticky="w")
+        
+        # Split mode selection - moved to row 1
         ttk.Radiobutton(settings_frame, text="Split by Size (MB):", variable=self.split_mode, 
-                       value="size", command=self.toggle_mode).grid(row=0, column=0, sticky="w")
+                       value="size", command=self.toggle_mode).grid(row=1, column=0, sticky="w")
         self.size_entry = ttk.Entry(settings_frame, textvariable=self.max_size, width=10)
-        self.size_entry.grid(row=0, column=1, sticky="w", padx=(5, 20))
+        self.size_entry.grid(row=1, column=1, sticky="w", padx=(5, 20))
         
         ttk.Radiobutton(settings_frame, text="Split by Rows:", variable=self.split_mode, 
-                       value="rows", command=self.toggle_mode).grid(row=0, column=2, sticky="w")
+                       value="rows", command=self.toggle_mode).grid(row=1, column=2, sticky="w")
         self.row_entry = ttk.Entry(settings_frame, textvariable=self.max_rows, width=10, state="disabled")
-        self.row_entry.grid(row=0, column=3, sticky="w", padx=(5, 0))
+        self.row_entry.grid(row=1, column=3, sticky="w", padx=(5, 0))
         
-        # File type selection
-        ttk.Label(settings_frame, text="Output file type:").grid(row=1, column=0, pady=(10, 0), sticky="w")
-        ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).grid(row=1, column=1, pady=(10, 0), sticky="w")
+        # File type selection - moved to row 2
+        ttk.Label(settings_frame, text="Output file type:").grid(row=2, column=0, pady=(10, 0), sticky="w")
+        ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).grid(row=2, column=1, pady=(10, 0), sticky="w")
 
-        # Delimiter settings - Updated layout
+        # Delimiter settings - moved to row 3
         self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", 
                                             variable=self.use_custom_delim, command=self.toggle_delim_fields)
         self.delim_checkbox.state(["disabled"])
-        self.delim_checkbox.grid(row=2, column=0, pady=(10, 0), sticky="w")
+        self.delim_checkbox.grid(row=3, column=0, pady=(10, 0), sticky="w")
 
-        self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5, state="disabled")
+        self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5, state="disabled", justify="center")
         self.set_delim_entry.config(validate="key", 
                                   validatecommand=(self.root.register(self.validate_delimiter), "%P"))
-        self.set_delim_entry.grid(row=2, column=1, pady=(10, 0), sticky="w", padx=(10, 0))
+        self.set_delim_entry.grid(row=3, column=1, pady=(10, 0), sticky="w", padx=(10, 0))
 
         # Move Current Delimiter label and display to the right of the input box
         # Use fixed width to prevent layout shifts
         self.delim_label = ttk.Label(settings_frame, text="Current Delimiter:", width=16)
         self.delim_display = ttk.Label(settings_frame, textvariable=self.detected_delimiter, width=5)
 
-        self.delim_label.grid(row=2, column=2, sticky="w", padx=(15, 5), pady=(10, 0))
-        self.delim_display.grid(row=2, column=3, sticky="w", pady=(10, 0))
-        
-        # Column Selection Button
-        self.column_select_button = ttk.Button(settings_frame, text="Select Columns...", 
-                                             command=self.open_column_selection, state="disabled")
-        self.column_select_button.grid(row=3, column=0, pady=(10, 0), sticky="w")
+        self.delim_label.grid(row=3, column=2, sticky="w", padx=(15, 5), pady=(10, 0))
+        self.delim_display.grid(row=3, column=3, sticky="w", pady=(10, 0))
         
         # Configure column weights to maintain stable layout
         settings_frame.columnconfigure(0, weight=1)

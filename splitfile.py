@@ -187,6 +187,7 @@ class FileSplitterApp:
         self.detected_delimiter = tk.StringVar(value="")
         self.open_dir_after_split = tk.BooleanVar(value=False)
         self.create_log = tk.BooleanVar(value=True)
+        self.retain_header = tk.BooleanVar(value=True)  # NEW: Default to retaining header
 
         # Column selection variables
         self.available_columns = []
@@ -306,10 +307,15 @@ class FileSplitterApp:
         settings_frame = ttk.LabelFrame(main_frame, text="Split Settings", padding=10, style="Bold.TLabelframe")
         settings_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
-        # Column Selection Button - moved to top (row 0)
+        # Column Selection Button and Header Retention Checkbox - row 0
         self.column_select_button = ttk.Button(settings_frame, text="Select Columns...", 
                                              command=self.open_column_selection, state="disabled")
         self.column_select_button.grid(row=0, column=0, pady=(0, 10), sticky="w")
+        
+        # NEW: Retain Header Row checkbox
+        self.retain_header_checkbox = ttk.Checkbutton(settings_frame, text="Retain Header Row", 
+                                                     variable=self.retain_header, state="disabled")
+        self.retain_header_checkbox.grid(row=0, column=2, columnspan=2, pady=(0, 10), sticky="w", padx=(20, 0))
         
         # Split mode selection - moved to row 1
         ttk.Radiobutton(settings_frame, text="Split by Size (MB):", variable=self.split_mode, 
@@ -512,16 +518,18 @@ class FileSplitterApp:
             self.row_entry.config(state="normal")
 
     def on_file_type_change(self, *args):
-        """Handle file type changes to enable/disable delimiter options"""
+        """Handle file type changes to enable/disable delimiter and header options"""
         if self.file_type.get() == ".json":
-            # Disable delimiter options for JSON
+            # Disable delimiter and header options for JSON
             self.use_custom_delim.set(False)
             self.delim_checkbox.state(["disabled"])
+            self.retain_header_checkbox.state(["disabled"])  # NEW: Disable for JSON
             self.toggle_delim_fields()
         else:
-            # Enable delimiter options for other formats if file is selected
+            # Enable delimiter and header options for other formats if file is selected
             if self.input_file.get():
                 self.delim_checkbox.state(["!disabled"])
+                self.retain_header_checkbox.state(["!disabled"])  # NEW: Enable for non-JSON
 
     def on_delimiter_change(self, *args):
         """Handle changes to detected delimiter"""
@@ -649,7 +657,7 @@ class FileSplitterApp:
             with open(input_file, 'r', newline='', encoding='utf-8') as infile:
                 detected_delimiter = self.detected_delimiter.get() or ','
                 reader = csv.reader(infile, delimiter=detected_delimiter)
-                header = next(reader)  # Read header
+                header = next(reader)  # Read and store header
                 
                 # Filter header to only include selected columns
                 if self.selected_columns:
@@ -659,6 +667,7 @@ class FileSplitterApp:
                     header_indices = list(range(len(header)))
                     filtered_header = header
                 
+                # Count only data rows (excluding header)
                 for _ in reader:
                     if self.cancel_event.is_set():
                         cancelled = True
@@ -686,11 +695,12 @@ class FileSplitterApp:
             max_size_bytes = size_or_rows * 1024 * 1024 if mode == "size" else None
             max_rows = size_or_rows if mode == "rows" else None
             is_json_format = file_extension == ".json"
+            include_header = self.retain_header.get()  # NEW: Get header retention setting
 
             with open(input_file, 'r', newline='', encoding='utf-8') as infile:
                 detected_delimiter = self.detected_delimiter.get() or ','
                 reader = csv.reader(infile, delimiter=detected_delimiter)
-                header = next(reader)
+                header = next(reader)  # Read and consume header row
                 
                 # Filter header to only include selected columns
                 if self.selected_columns:
@@ -713,10 +723,12 @@ class FileSplitterApp:
                     # For CSV/TXT/DAT, use the original method
                     outfile = open(output_path, 'w', newline='', encoding='utf-8')
                     writer = csv.writer(outfile, delimiter=custom_delimiter)
-                    writer.writerow(filtered_header)  # Write filtered header
+                    if include_header:  # NEW: Conditionally write header
+                        writer.writerow(filtered_header)  # Write filtered header
                     current_size = outfile.tell()
                     current_rows = 0
 
+                # Process all data rows (header was already consumed by next(reader))
                 for row in reader:
                     if self.cancel_event.is_set():
                         cancelled = True
@@ -732,6 +744,7 @@ class FileSplitterApp:
                             output_data_row_count += current_rows
                         break
 
+                    # Count this as a data row (not header)
                     input_data_row_count += 1
                     processed_rows += 1
                     
@@ -779,7 +792,7 @@ class FileSplitterApp:
                             current_rows = 0
                             estimated_size = 2  # Reset to "[]"
                     else:
-                        # Original CSV/TXT/DAT logic with filtered row
+                        # Check if we need to split before writing this row
                         outfile.flush()
                         if (
                             (mode == "size" and current_size >= max_size_bytes) or
@@ -792,10 +805,12 @@ class FileSplitterApp:
                             output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                             outfile = open(output_path, 'w', newline='', encoding='utf-8')
                             writer = csv.writer(outfile, delimiter=custom_delimiter)
-                            writer.writerow(filtered_header)  # Write filtered header
+                            if include_header:  # NEW: Conditionally write header for new files
+                                writer.writerow(filtered_header)  # Write filtered header
                             current_size = outfile.tell()
                             current_rows = 0
 
+                        # Write the current data row
                         writer.writerow(filtered_row)  # Write filtered row
                         current_size = outfile.tell()
                         current_rows += 1
@@ -862,6 +877,7 @@ class FileSplitterApp:
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
+                log_file.write(f"Header Row Included: {'Yes' if self.retain_header.get() else 'No'}\n")  # NEW
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
@@ -903,6 +919,7 @@ class FileSplitterApp:
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
+                log_file.write(f"Header Row Included: {'Yes' if self.retain_header.get() else 'No'}\n")  # NEW
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
@@ -997,6 +1014,7 @@ class FileSplitterApp:
         self.file_type.set(".csv")  # Reset to default file type
         self.use_custom_delim.set(False)  # Reset custom delimiter checkbox
         self.custom_delimiter.set("")  # Clear custom delimiter value
+        self.retain_header.set(True)  # NEW: Reset to default (retain header)
         
         # Reset column selection to all columns (if file is selected)
         if self.available_columns:
@@ -1016,7 +1034,8 @@ class FileSplitterApp:
         if not self.input_file.get():
             # Disable buttons when no file selected
             self.output_browse_button.config(state="disabled")
-            self.column_select_button.config(state="disabled")  # NEW
+            self.column_select_button.config(state="disabled")
+            self.retain_header_checkbox.state(["disabled"])  # NEW: Disable when no file
             self.output_dir.set("")  # Clear output directory
             
             self.delim_checkbox.state(["disabled"])
@@ -1035,11 +1054,12 @@ class FileSplitterApp:
         else:
             # Enable buttons when file is selected
             self.output_browse_button.config(state="normal")
-            self.column_select_button.config(state="normal")  # NEW
+            self.column_select_button.config(state="normal")
             
-            # Enable delimiter checkbox only if not JSON format
+            # Enable delimiter and header checkboxes only if not JSON format
             if self.file_type.get() != ".json":
                 self.delim_checkbox.state(["!disabled"])
+                self.retain_header_checkbox.state(["!disabled"])  # NEW: Enable when file selected
             # Clear previous stats when new file selected
             self.total_rows.set("")
             self.current_file.set("")

@@ -435,13 +435,41 @@ class FileSplitterApp:
         # Initialize delimiter fields to hidden state
         self.toggle_delim_fields()
 
+    def is_supported_input_file_type(self, file_path):
+        """Check if the input file type is supported for reading"""
+        if not file_path:
+            return False
+        
+        # Get file extension in lowercase
+        _, ext = os.path.splitext(file_path.lower())
+        
+        # Supported input file types
+        supported_extensions = {'.csv', '.txt', '.dat', '.json'}
+        
+        return ext in supported_extensions
+
     def select_file(self):
         path = filedialog.askopenfilename(
             title="Select File to Split",
             filetypes=[("CSV files", "*.csv"), ("DAT files", "*.dat"), 
-                      ("TXT files", "*.txt"), ("All files", "*.*")]
+                      ("TXT files", "*.txt"), ("JSON files", "*.json"), ("All files", "*.*")]
         )
         if path:
+            # Check if the selected file type is supported
+            if not self.is_supported_input_file_type(path):
+                _, ext = os.path.splitext(path)
+                messagebox.showwarning(
+                    "Unsupported File Type", 
+                    f"The selected file type '{ext}' is not supported as an input file.\n\n"
+                    f"Supported input file types are:\n"
+                    f"• CSV files (.csv)\n"
+                    f"• Text files (.txt)\n"
+                    f"• Data files (.dat)\n"
+                    f"• JSON files (.json)\n\n"
+                    f"Please select a file with a supported format."
+                )
+                return
+            
             default_out = os.path.join(os.path.dirname(path), 'split_files')
             self.output_dir.set(default_out.replace('\\', '/'))
             self.input_file.set(path)
@@ -450,15 +478,21 @@ class FileSplitterApp:
             # Load column headers
             self.load_column_headers()
             
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    sample = f.read(2048)
-                    sniffer = csv.Sniffer()
-                    dialect = sniffer.sniff(sample)
-                    self.detected_delimiter.set(dialect.delimiter)
-            except Exception as e:
-                self.detected_delimiter.set(',')
-                print(f"Could not detect delimiter: {e}")
+            # Only try to detect delimiter for non-JSON files
+            _, ext = os.path.splitext(path.lower())
+            if ext != '.json':
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        sample = f.read(2048)
+                        sniffer = csv.Sniffer()
+                        dialect = sniffer.sniff(sample)
+                        self.detected_delimiter.set(dialect.delimiter)
+                except Exception as e:
+                    self.detected_delimiter.set(',')
+                    print(f"Could not detect delimiter: {e}")
+            else:
+                self.detected_delimiter.set(',')  # Default delimiter for JSON conversion
+                
             if self.use_custom_delim.get():
                 self.toggle_delim_fields()
 
@@ -468,29 +502,112 @@ class FileSplitterApp:
             return
             
         try:
-            with open(self.input_file.get(), 'r', encoding='utf-8') as f:
-                sample = f.read(2048)
-                f.seek(0)
-                
-                # Detect delimiter
-                sniffer = csv.Sniffer()
-                try:
-                    dialect = sniffer.sniff(sample)
-                    delimiter = dialect.delimiter
-                except:
-                    delimiter = ','
-                
-                # Read header row
-                reader = csv.reader(f, delimiter=delimiter)
-                header = next(reader)
-                
-                self.available_columns = header
-                self.selected_columns = header.copy()  # By default, include all columns
+            _, ext = os.path.splitext(self.input_file.get().lower())
+            
+            if ext == '.json':
+                # Handle JSON files
+                with open(self.input_file.get(), 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                # Handle different JSON structures
+                if isinstance(data, list) and data:
+                    # Array of objects - most common case
+                    ordered_keys = []
+                    seen_keys = set()
+                    
+                    # Get keys from first object to establish order
+                    if isinstance(data[0], dict):
+                        first_obj_keys = self.flatten_json_keys(data[0])
+                        for key in first_obj_keys:
+                            if key not in seen_keys:
+                                ordered_keys.append(key)
+                                seen_keys.add(key)
+                    
+                    # Collect any additional keys from remaining objects (append to end)
+                    for item in data[1:101]:  # Sample up to 100 more items for performance
+                        if isinstance(item, dict):
+                            item_keys = self.flatten_json_keys(item)
+                            for key in item_keys:
+                                if key not in seen_keys:
+                                    ordered_keys.append(key)
+                                    seen_keys.add(key)
+                    
+                    self.available_columns = ordered_keys
+                    self.selected_columns = self.available_columns.copy()
+                    
+                elif isinstance(data, dict):
+                    # Single object - treat keys as columns
+                    all_keys = self.flatten_json_keys(data)
+                    self.available_columns = all_keys  # No need to sort, already in order
+                    self.selected_columns = self.available_columns.copy()
+                else:
+                    # Unsupported JSON structure
+                    self.available_columns = []
+                    self.selected_columns = []
+                    
+            else:
+                # Handle CSV/TXT/DAT files
+                with open(self.input_file.get(), 'r', encoding='utf-8') as f:
+                    sample = f.read(2048)
+                    f.seek(0)
+                    
+                    # Detect delimiter
+                    sniffer = csv.Sniffer()
+                    try:
+                        dialect = sniffer.sniff(sample)
+                        delimiter = dialect.delimiter
+                    except:
+                        delimiter = ','
+                    
+                    # Read header row
+                    reader = csv.reader(f, delimiter=delimiter)
+                    header = next(reader)
+                    
+                    self.available_columns = header
+                    self.selected_columns = header.copy()  # By default, include all columns
                 
         except Exception as e:
             print(f"Error loading column headers: {e}")
             self.available_columns = []
             self.selected_columns = []
+
+    def flatten_json_keys(self, obj, parent_key='', sep='.'):
+        """Flatten nested JSON object keys with dot notation, preserving order"""
+        keys = []  # Use list to preserve order
+        
+        if isinstance(obj, dict):
+            for key, value in obj.items():  # dict.items() preserves insertion order in Python 3.7+
+                new_key = f"{parent_key}{sep}{key}" if parent_key else key
+                keys.append(new_key)
+                
+                # Recursively flatten nested objects
+                if isinstance(value, dict):
+                    keys.extend(self.flatten_json_keys(value, new_key, sep))
+                elif isinstance(value, list) and value and isinstance(value[0], dict):
+                    # Handle arrays of objects by flattening the first object
+                    keys.extend(self.flatten_json_keys(value[0], new_key, sep))
+        
+        return keys
+
+    def flatten_json_object(self, obj, parent_key='', sep='.'):
+        """Flatten a nested JSON object into a flat dictionary"""
+        flattened = {}
+        
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                new_key = f"{parent_key}{sep}{key}" if parent_key else key
+                
+                if isinstance(value, dict):
+                    flattened.update(self.flatten_json_object(value, new_key, sep))
+                elif isinstance(value, list):
+                    # Convert lists to string representation
+                    flattened[new_key] = json.dumps(value) if value else ''
+                else:
+                    flattened[new_key] = str(value) if value is not None else ''
+        else:
+            flattened[parent_key] = str(obj) if obj is not None else ''
+        
+        return flattened
 
     def open_column_selection(self):
         """Open the column selection window"""
@@ -519,17 +636,33 @@ class FileSplitterApp:
 
     def on_file_type_change(self, *args):
         """Handle file type changes to enable/disable delimiter and header options"""
+        # Check if input file is JSON
+        input_is_json = False
+        if self.input_file.get():
+            _, input_ext = os.path.splitext(self.input_file.get().lower())
+            input_is_json = input_ext == '.json'
+        
         if self.file_type.get() == ".json":
-            # Disable delimiter and header options for JSON
+            # Output is JSON - disable delimiter options
             self.use_custom_delim.set(False)
             self.delim_checkbox.state(["disabled"])
-            self.retain_header_checkbox.state(["disabled"])  # NEW: Disable for JSON
+            self.retain_header_checkbox.state(["disabled"])  # Header doesn't apply to JSON output
             self.toggle_delim_fields()
         else:
-            # Enable delimiter and header options for other formats if file is selected
+            # Output is not JSON - enable options based on input type
             if self.input_file.get():
-                self.delim_checkbox.state(["!disabled"])
-                self.retain_header_checkbox.state(["!disabled"])  # NEW: Enable for non-JSON
+                if input_is_json:
+                    # JSON input to non-JSON output: disable delimiter (not applicable to JSON input)
+                    # but enable header option for output format
+                    self.delim_checkbox.state(["disabled"])
+                    self.retain_header_checkbox.state(["!disabled"])
+                    self.use_custom_delim.set(False)
+                    self.toggle_delim_fields()
+                else:
+                    # Non-JSON input to non-JSON output: enable both options
+                    self.delim_checkbox.state(["!disabled"])
+                    self.retain_header_checkbox.state(["!disabled"])
+            # If no file selected, keep everything disabled
 
     def on_delimiter_change(self, *args):
         """Handle changes to detected delimiter"""
@@ -540,9 +673,16 @@ class FileSplitterApp:
             self.delim_display.config(foreground=normal_color)
 
     def toggle_delim_fields(self):
+        # Check if input file is JSON
+        input_is_json = False
+        if self.input_file.get():
+            _, input_ext = os.path.splitext(self.input_file.get().lower())
+            input_is_json = input_ext == '.json'
+            
         show_current_delim = (self.use_custom_delim.get() and 
                              self.input_file.get() and 
-                             self.file_type.get() != ".json")
+                             self.file_type.get() != ".json" and
+                             not input_is_json)  # Don't show for JSON input
         
         # Show/hide by matching background color or using normal text color
         if show_current_delim:
@@ -563,8 +703,11 @@ class FileSplitterApp:
             self.delim_label.config(foreground=bg_color)
             self.delim_display.config(foreground=bg_color)
         
-        # Enable/disable the new delimiter entry based on checkbox state
-        if self.use_custom_delim.get() and self.input_file.get() and self.file_type.get() != ".json":
+        # Enable/disable the new delimiter entry based on checkbox state and file types
+        if (self.use_custom_delim.get() and 
+            self.input_file.get() and 
+            self.file_type.get() != ".json" and
+            not input_is_json):
             self.set_delim_entry.config(state="normal")
         else:
             self.set_delim_entry.config(state="disabled")
@@ -577,6 +720,21 @@ class FileSplitterApp:
 
         if not file_path:
             messagebox.showwarning("Warning", "Please select a file to split.")
+            return
+
+        # NEW: Validate input file type before proceeding
+        if not self.is_supported_input_file_type(file_path):
+            _, ext = os.path.splitext(file_path)
+            messagebox.showwarning(
+                "Unsupported Input File Type", 
+                f"The input file type '{ext}' is not supported for reading.\n\n"
+                f"Supported input file types are:\n"
+                f"• CSV files (.csv)\n"
+                f"• Text files (.txt)\n"
+                f"• Data files (.dat)\n"
+                f"• JSON files (.json)\n\n"
+                f"Please select a file with a supported format."
+            )
             return
 
         try:
@@ -651,31 +809,79 @@ class FileSplitterApp:
         try:
             os.makedirs(output_dir, exist_ok=True)
             
+            # Detect input file type
+            _, input_ext = os.path.splitext(input_file.lower())
+            is_json_input = input_ext == '.json'
+            
             # First pass: count total rows for progress tracking
             self.root.after(0, lambda: self.total_rows.set("Analyzing file..."))
             total_rows = 0
-            with open(input_file, 'r', newline='', encoding='utf-8') as infile:
-                detected_delimiter = self.detected_delimiter.get() or ','
-                reader = csv.reader(infile, delimiter=detected_delimiter)
-                header = next(reader)  # Read and store header
-                
-                # Filter header to only include selected columns
-                if self.selected_columns:
-                    header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
-                    filtered_header = [header[i] for i in header_indices]
+            
+            if is_json_input:
+                # Handle JSON input
+                with open(input_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                if isinstance(data, list):
+                    total_rows = len(data)
+                    # Get all possible column keys in order (same logic as load_column_headers)
+                    ordered_keys = []
+                    seen_keys = set()
+                    
+                    # Get keys from first object to establish order
+                    if data and isinstance(data[0], dict):
+                        first_obj_keys = self.flatten_json_keys(data[0])
+                        for key in first_obj_keys:
+                            if key not in seen_keys:
+                                ordered_keys.append(key)
+                                seen_keys.add(key)
+                    
+                    # Collect any additional keys from remaining objects
+                    for item in data[1:101]:  # Sample up to 100 more items
+                        if isinstance(item, dict):
+                            item_keys = self.flatten_json_keys(item)
+                            for key in item_keys:
+                                if key not in seen_keys:
+                                    ordered_keys.append(key)
+                                    seen_keys.add(key)
+                    
+                    header = ordered_keys
+                elif isinstance(data, dict):
+                    total_rows = 1
+                    header = self.flatten_json_keys(data)  # Already in order
                 else:
-                    header_indices = list(range(len(header)))
+                    raise ValueError("Unsupported JSON structure. Expected array of objects or single object.")
+                    
+                # Filter header to only include selected columns, preserving order
+                if self.selected_columns:
+                    filtered_header = [col for col in header if col in self.selected_columns]
+                else:
                     filtered_header = header
-                
-                # Count only data rows (excluding header)
-                for _ in reader:
-                    if self.cancel_event.is_set():
-                        cancelled = True
-                        analysis_rows_counted = total_rows
-                        break
-                    total_rows += 1
-                    if total_rows % 1000 == 0:
-                        self.root.after(0, lambda r=total_rows: self.total_rows.set(f"Analyzing... {r:,} rows"))
+                    
+            else:
+                # Handle CSV/TXT/DAT input
+                with open(input_file, 'r', newline='', encoding='utf-8') as infile:
+                    detected_delimiter = self.detected_delimiter.get() or ','
+                    reader = csv.reader(infile, delimiter=detected_delimiter)
+                    header = next(reader)  # Read and store header
+                    
+                    # Filter header to only include selected columns
+                    if self.selected_columns:
+                        header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
+                        filtered_header = [header[i] for i in header_indices]
+                    else:
+                        header_indices = list(range(len(header)))
+                        filtered_header = header
+                    
+                    # Count only data rows (excluding header)
+                    for _ in reader:
+                        if self.cancel_event.is_set():
+                            cancelled = True
+                            analysis_rows_counted = total_rows
+                            break
+                        total_rows += 1
+                        if total_rows % 1000 == 0:
+                            self.root.after(0, lambda r=total_rows: self.total_rows.set(f"Analyzing... {r:,} rows"))
 
             if self.cancel_event.is_set() and not cancelled:
                 cancelled = True
@@ -697,39 +903,38 @@ class FileSplitterApp:
             is_json_format = file_extension == ".json"
             include_header = self.retain_header.get()  # NEW: Get header retention setting
 
-            with open(input_file, 'r', newline='', encoding='utf-8') as infile:
-                detected_delimiter = self.detected_delimiter.get() or ','
-                reader = csv.reader(infile, delimiter=detected_delimiter)
-                header = next(reader)  # Read and consume header row
-                
-                # Filter header to only include selected columns
-                if self.selected_columns:
-                    header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
-                    filtered_header = [header[i] for i in header_indices]
+            if is_json_input:
+                # Process JSON input data
+                with open(input_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                if isinstance(data, list):
+                    json_rows = data
+                elif isinstance(data, dict):
+                    json_rows = [data]
                 else:
-                    header_indices = list(range(len(header)))
-                    filtered_header = header
-
+                    json_rows = []
+                    
                 processed_rows = 0
                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                 
                 if is_json_format:
-                    # For JSON, we'll collect rows in memory and write them all at once
+                    # JSON to JSON splitting
                     current_json_data = []
                     current_rows = 0
-                    estimated_size = 2  # Start with "[]" 
-                    avg_row_size = 0  # Track average row size for better estimation
+                    estimated_size = 2  # Start with "[]"
+                    avg_row_size = 0
                 else:
-                    # For CSV/TXT/DAT, use the original method
+                    # JSON to CSV/TXT/DAT conversion
                     outfile = open(output_path, 'w', newline='', encoding='utf-8')
                     writer = csv.writer(outfile, delimiter=custom_delimiter)
-                    if include_header:  # NEW: Conditionally write header
-                        writer.writerow(filtered_header)  # Write filtered header
+                    if include_header:
+                        writer.writerow(filtered_header)
                     current_size = outfile.tell()
                     current_rows = 0
 
-                # Process all data rows (header was already consumed by next(reader))
-                for row in reader:
+                # Process JSON data rows
+                for json_row in json_rows:
                     if self.cancel_event.is_set():
                         cancelled = True
                         if not is_json_format:
@@ -737,50 +942,55 @@ class FileSplitterApp:
                         # Write partial file counts for logging
                         if current_rows > 0:
                             if is_json_format and current_json_data:
-                                # Write remaining JSON data before cancelling
                                 with open(output_path, 'w', encoding='utf-8') as json_file:
                                     json.dump(current_json_data, json_file, separators=(',', ':'))
                             per_file_row_counts.append(current_rows)
                             output_data_row_count += current_rows
                         break
 
-                    # Count this as a data row (not header)
                     input_data_row_count += 1
                     processed_rows += 1
                     
-                    # Filter row to only include selected columns
-                    filtered_row = [row[i] if i < len(row) else '' for i in header_indices]
+                    # Convert JSON object to flat row
+                    if isinstance(json_row, dict):
+                        flattened_row = self.flatten_json_object(json_row)
+                        # Create filtered row based on selected columns
+                        filtered_row = [flattened_row.get(col, '') for col in filtered_header]
+                    else:
+                        # Handle non-dict items
+                        filtered_row = [str(json_row)]
                     
                     # Update progress every 100 rows
                     if processed_rows % 100 == 0:
                         self.update_progress(processed_rows, total_rows, output_path, part_num)
                     
                     if is_json_format:
-                        # Convert row to JSON object using filtered header and row
-                        row_dict = dict(zip(filtered_header, filtered_row))
-                        current_json_data.append(row_dict)
+                        # JSON to JSON - recreate object with selected columns only
+                        if isinstance(json_row, dict):
+                            filtered_obj = {col: flattened_row.get(col, '') for col in filtered_header}
+                        else:
+                            filtered_obj = json_row
+                            
+                        current_json_data.append(filtered_obj)
                         current_rows += 1
                         
-                        # Efficient size estimation for JSON
+                        # Size estimation for JSON
                         if mode == "size":
                             if current_rows <= 10:
-                                # For first 10 rows, calculate actual size to get better average
-                                row_json_size = len(json.dumps(row_dict, separators=(',', ':')))
-                                estimated_size += row_json_size + (1 if current_rows > 1 else 0)  # +1 for comma
+                                row_json_size = len(json.dumps(filtered_obj, separators=(',', ':')))
+                                estimated_size += row_json_size + (1 if current_rows > 1 else 0)
                                 avg_row_size = estimated_size / current_rows if current_rows > 0 else 0
                             else:
-                                # Use average size estimation for subsequent rows
-                                estimated_size += avg_row_size + 1  # +1 for comma
+                                estimated_size += avg_row_size + 1
                         
                         # Check if we need to split
                         split_needed = False
                         if mode == "size":
                             split_needed = estimated_size >= max_size_bytes
-                        else:  # mode == "rows"
+                        else:
                             split_needed = current_rows >= max_rows
                             
                         if split_needed:
-                            # Write JSON file (compact format for better performance)
                             with open(output_path, 'w', encoding='utf-8') as json_file:
                                 json.dump(current_json_data, json_file, separators=(',', ':'))
                             
@@ -790,8 +1000,9 @@ class FileSplitterApp:
                             output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                             current_json_data = []
                             current_rows = 0
-                            estimated_size = 2  # Reset to "[]"
+                            estimated_size = 2
                     else:
+                        # JSON to CSV/TXT/DAT conversion
                         # Check if we need to split before writing this row
                         outfile.flush()
                         if (
@@ -805,17 +1016,17 @@ class FileSplitterApp:
                             output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                             outfile = open(output_path, 'w', newline='', encoding='utf-8')
                             writer = csv.writer(outfile, delimiter=custom_delimiter)
-                            if include_header:  # NEW: Conditionally write header for new files
-                                writer.writerow(filtered_header)  # Write filtered header
+                            if include_header:
+                                writer.writerow(filtered_header)
                             current_size = outfile.tell()
                             current_rows = 0
 
-                        # Write the current data row
-                        writer.writerow(filtered_row)  # Write filtered row
+                        # Write the converted row
+                        writer.writerow(filtered_row)
                         current_size = outfile.tell()
                         current_rows += 1
 
-                # If cancelled during splitting, write cancellation log
+                # Handle the last file for JSON input
                 if cancelled:
                     self.write_cancellation_log(input_file, output_dir, file_extension, custom_delimiter, 
                                                input_data_row_count, output_data_row_count, per_file_row_counts, 
@@ -823,9 +1034,8 @@ class FileSplitterApp:
                     self.root.after(0, lambda: self.show_cancelled())
                     return
 
-                # Handle the last file (normal completion)
                 if is_json_format:
-                    if current_json_data:  # Write remaining data
+                    if current_json_data:
                         with open(output_path, 'w', encoding='utf-8') as json_file:
                             json.dump(current_json_data, json_file, separators=(',', ':'))
                         per_file_row_counts.append(current_rows)
@@ -834,13 +1044,153 @@ class FileSplitterApp:
                     outfile.close()
                     per_file_row_counts.append(current_rows)
                     output_data_row_count += current_rows
+                    
+            else:
+                # Handle CSV/TXT/DAT input (existing logic)
+                with open(input_file, 'r', newline='', encoding='utf-8') as infile:
+                    detected_delimiter = self.detected_delimiter.get() or ','
+                    reader = csv.reader(infile, delimiter=detected_delimiter)
+                    header = next(reader)  # Read and consume header row
+                    
+                    # Filter header to only include selected columns
+                    if self.selected_columns:
+                        header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
+                        filtered_header = [header[i] for i in header_indices]
+                    else:
+                        header_indices = list(range(len(header)))
+                        filtered_header = header
 
-                # Store row counts for validation
-                self.input_row_count = input_data_row_count
-                self.output_row_count = output_data_row_count
+                    processed_rows = 0
+                    output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
+                    
+                    if is_json_format:
+                        # CSV to JSON conversion
+                        current_json_data = []
+                        current_rows = 0
+                        estimated_size = 2  # Start with "[]" 
+                        avg_row_size = 0  # Track average row size for better estimation
+                    else:
+                        # CSV to CSV/TXT/DAT
+                        outfile = open(output_path, 'w', newline='', encoding='utf-8')
+                        writer = csv.writer(outfile, delimiter=custom_delimiter)
+                        if include_header:  # NEW: Conditionally write header
+                            writer.writerow(filtered_header)  # Write filtered header
+                        current_size = outfile.tell()
+                        current_rows = 0
 
-                # Final progress update
-                self.update_progress(total_rows, total_rows, output_path, part_num)
+                    # Process all data rows (header was already consumed by next(reader))
+                    for row in reader:
+                        if self.cancel_event.is_set():
+                            cancelled = True
+                            if not is_json_format:
+                                outfile.close()
+                            # Write partial file counts for logging
+                            if current_rows > 0:
+                                if is_json_format and current_json_data:
+                                    # Write remaining JSON data before cancelling
+                                    with open(output_path, 'w', encoding='utf-8') as json_file:
+                                        json.dump(current_json_data, json_file, separators=(',', ':'))
+                                per_file_row_counts.append(current_rows)
+                                output_data_row_count += current_rows
+                            break
+
+                        # Count this as a data row (not header)
+                        input_data_row_count += 1
+                        processed_rows += 1
+                        
+                        # Filter row to only include selected columns
+                        filtered_row = [row[i] if i < len(row) else '' for i in header_indices]
+                        
+                        # Update progress every 100 rows
+                        if processed_rows % 100 == 0:
+                            self.update_progress(processed_rows, total_rows, output_path, part_num)
+                        
+                        if is_json_format:
+                            # Convert row to JSON object using filtered header and row
+                            row_dict = dict(zip(filtered_header, filtered_row))
+                            current_json_data.append(row_dict)
+                            current_rows += 1
+                            
+                            # Efficient size estimation for JSON
+                            if mode == "size":
+                                if current_rows <= 10:
+                                    # For first 10 rows, calculate actual size to get better average
+                                    row_json_size = len(json.dumps(row_dict, separators=(',', ':')))
+                                    estimated_size += row_json_size + (1 if current_rows > 1 else 0)  # +1 for comma
+                                    avg_row_size = estimated_size / current_rows if current_rows > 0 else 0
+                                else:
+                                    # Use average size estimation for subsequent rows
+                                    estimated_size += avg_row_size + 1  # +1 for comma
+                            
+                            # Check if we need to split
+                            split_needed = False
+                            if mode == "size":
+                                split_needed = estimated_size >= max_size_bytes
+                            else:  # mode == "rows"
+                                split_needed = current_rows >= max_rows
+                                
+                            if split_needed:
+                                # Write JSON file (compact format for better performance)
+                                with open(output_path, 'w', encoding='utf-8') as json_file:
+                                    json.dump(current_json_data, json_file, separators=(',', ':'))
+                                
+                                per_file_row_counts.append(current_rows)
+                                output_data_row_count += current_rows
+                                part_num += 1
+                                output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
+                                current_json_data = []
+                                current_rows = 0
+                                estimated_size = 2  # Reset to "[]"
+                        else:
+                            # Check if we need to split before writing this row
+                            outfile.flush()
+                            if (
+                                (mode == "size" and current_size >= max_size_bytes) or
+                                (mode == "rows" and current_rows >= max_rows)
+                            ):
+                                outfile.close()
+                                per_file_row_counts.append(current_rows)
+                                output_data_row_count += current_rows
+                                part_num += 1
+                                output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
+                                outfile = open(output_path, 'w', newline='', encoding='utf-8')
+                                writer = csv.writer(outfile, delimiter=custom_delimiter)
+                                if include_header:  # NEW: Conditionally write header for new files
+                                    writer.writerow(filtered_header)  # Write filtered header
+                                current_size = outfile.tell()
+                                current_rows = 0
+
+                            # Write the current data row
+                            writer.writerow(filtered_row)  # Write filtered row
+                            current_size = outfile.tell()
+                            current_rows += 1
+
+                    # If cancelled during splitting, write cancellation log
+                    if cancelled:
+                        self.write_cancellation_log(input_file, output_dir, file_extension, custom_delimiter, 
+                                                   input_data_row_count, output_data_row_count, per_file_row_counts, 
+                                                   "during file splitting", part_num)
+                        self.root.after(0, lambda: self.show_cancelled())
+                        return
+
+                    # Handle the last file (normal completion)
+                    if is_json_format:
+                        if current_json_data:  # Write remaining data
+                            with open(output_path, 'w', encoding='utf-8') as json_file:
+                                json.dump(current_json_data, json_file, separators=(',', ':'))
+                            per_file_row_counts.append(current_rows)
+                            output_data_row_count += current_rows
+                    else:
+                        outfile.close()
+                        per_file_row_counts.append(current_rows)
+                        output_data_row_count += current_rows
+
+            # Store row counts for validation
+            self.input_row_count = input_data_row_count
+            self.output_row_count = output_data_row_count
+
+            # Final progress update
+            self.update_progress(total_rows, total_rows, output_path, part_num)
 
             # Create log file for successful completion
             if self.create_log.get():
@@ -1056,10 +1406,28 @@ class FileSplitterApp:
             self.output_browse_button.config(state="normal")
             self.column_select_button.config(state="normal")
             
-            # Enable delimiter and header checkboxes only if not JSON format
-            if self.file_type.get() != ".json":
-                self.delim_checkbox.state(["!disabled"])
-                self.retain_header_checkbox.state(["!disabled"])  # NEW: Enable when file selected
+            # Check if input file is JSON
+            _, input_ext = os.path.splitext(self.input_file.get().lower())
+            is_json_input = input_ext == '.json'
+            
+            if is_json_input:
+                # For JSON input files, disable delimiter settings as they don't apply
+                self.delim_checkbox.state(["disabled"])
+                self.use_custom_delim.set(False)
+                self.toggle_delim_fields()
+                # Enable header checkbox for JSON input (applies to output format)
+                self.retain_header_checkbox.state(["!disabled"])
+            else:
+                # Enable delimiter and header checkboxes for non-JSON input files
+                # But only enable if output format is not JSON
+                if self.file_type.get() != ".json":
+                    self.delim_checkbox.state(["!disabled"])
+                    self.retain_header_checkbox.state(["!disabled"])
+                else:
+                    # Output is JSON, so disable delimiter but keep header option
+                    self.delim_checkbox.state(["disabled"])
+                    self.retain_header_checkbox.state(["disabled"])
+                    
             # Clear previous stats when new file selected
             self.total_rows.set("")
             self.current_file.set("")

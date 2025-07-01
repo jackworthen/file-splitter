@@ -170,7 +170,7 @@ class FileSplitterApp:
             print(f"Warning: Could not load icon. {e}")
         
         self.root.geometry("450x750")  # Increased height slightly for new button
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
         
         # Configure style
         self.setup_styles()
@@ -312,21 +312,24 @@ class FileSplitterApp:
                                              command=self.open_column_selection, state="disabled")
         self.column_select_button.grid(row=0, column=0, pady=(0, 10), sticky="w")
         
-        # NEW: Retain Header Row checkbox
+        # NEW: Retain Header Row checkbox - moved closer to the button
         self.retain_header_checkbox = ttk.Checkbutton(settings_frame, text="Retain Header Row", 
                                                      variable=self.retain_header, state="disabled")
-        self.retain_header_checkbox.grid(row=0, column=2, columnspan=2, pady=(0, 10), sticky="w", padx=(20, 0))
+        self.retain_header_checkbox.grid(row=0, column=1, pady=(0, 10), sticky="w", padx=(10, 0))
         
-        # Split mode selection - moved to row 1
-        ttk.Radiobutton(settings_frame, text="Split by Size (MB):", variable=self.split_mode, 
-                       value="size", command=self.toggle_mode).grid(row=1, column=0, sticky="w")
-        self.size_entry = ttk.Entry(settings_frame, textvariable=self.max_size, width=10)
-        self.size_entry.grid(row=1, column=1, sticky="w", padx=(5, 20))
+        # Split mode selection - moved to row 1 - using sub-frames for tighter control
+        split_mode_frame = ttk.Frame(settings_frame)
+        split_mode_frame.grid(row=1, column=0, columnspan=4, sticky="w", pady=(0, 0))
         
-        ttk.Radiobutton(settings_frame, text="Split by Rows:", variable=self.split_mode, 
-                       value="rows", command=self.toggle_mode).grid(row=1, column=2, sticky="w")
-        self.row_entry = ttk.Entry(settings_frame, textvariable=self.max_rows, width=10, state="disabled")
-        self.row_entry.grid(row=1, column=3, sticky="w", padx=(5, 0))
+        ttk.Radiobutton(split_mode_frame, text="Split by Size (MB):", variable=self.split_mode, 
+                       value="size", command=self.toggle_mode).pack(side="left")
+        self.size_entry = ttk.Entry(split_mode_frame, textvariable=self.max_size, width=10)
+        self.size_entry.pack(side="left", padx=(5, 15))
+        
+        ttk.Radiobutton(split_mode_frame, text="Split by Rows:", variable=self.split_mode, 
+                       value="rows", command=self.toggle_mode).pack(side="left")
+        self.row_entry = ttk.Entry(split_mode_frame, textvariable=self.max_rows, width=10, state="disabled")
+        self.row_entry.pack(side="left", padx=(5, 0))
         
         # File type selection - moved to row 2
         ttk.Label(settings_frame, text="Output file type:").grid(row=2, column=0, pady=(10, 0), sticky="w")
@@ -353,9 +356,9 @@ class FileSplitterApp:
         
         # Configure column weights to maintain stable layout
         settings_frame.columnconfigure(0, weight=1)
-        settings_frame.columnconfigure(1, weight=0, minsize=80)
-        settings_frame.columnconfigure(2, weight=0, minsize=120)
-        settings_frame.columnconfigure(3, weight=0, minsize=40)
+        settings_frame.columnconfigure(1, weight=0)
+        settings_frame.columnconfigure(2, weight=0)
+        settings_frame.columnconfigure(3, weight=0)
 
         # Stats Section
         stats_frame_outer = ttk.LabelFrame(main_frame, text="Statistics", padding=10, style="Bold.TLabelframe")
@@ -1320,7 +1323,7 @@ class FileSplitterApp:
         # Keep progress bar and percentage visible after completion
 
     def reset_stats_and_progress(self):
-        """Reset statistics, progress, and split settings, keeping source file and output directory"""
+        """Reset statistics, progress, split settings, source file, and output directory"""
         # Reset progress bar and percentage
         self.progress['value'] = 0
         self.progress_percentage.set("")
@@ -1338,20 +1341,24 @@ class FileSplitterApp:
         self.output_row_count = 0
         self.current_part_num = 0
         
-        # Reset Split Settings (but keep source file and output directory)
+        # Clear source file and output directory
+        self.input_file.set("")  # Clear source file
+        self.output_dir.set("")  # Clear output directory
+        
+        # Reset Split Settings
         self.split_mode.set("size")  # Reset to default split mode
         self.max_size.set("")  # Clear size value
         self.max_rows.set("")  # Clear rows value
         self.file_type.set(".csv")  # Reset to default file type
         self.use_custom_delim.set(False)  # Reset custom delimiter checkbox
         self.custom_delimiter.set("")  # Clear custom delimiter value
-        self.retain_header.set(True)  # NEW: Reset to default (retain header)
+        self.retain_header.set(True)  # Reset to default (retain header)
         
-        # Reset column selection to all columns (if file is selected)
-        if self.available_columns:
-            self.selected_columns = self.available_columns.copy()
+        # Clear column data
+        self.available_columns = []
+        self.selected_columns = []
         
-        # Update UI states
+        # Update UI states (this will trigger on_input_file_change which disables buttons appropriately)
         self.toggle_mode()  # Update entry states based on split mode
         self.toggle_delim_fields()  # Update delimiter field states
         

@@ -636,32 +636,19 @@ class FileSplitterApp:
 
     def on_file_type_change(self, *args):
         """Handle file type changes to enable/disable delimiter and header options"""
-        # Check if input file is JSON
-        input_is_json = False
-        if self.input_file.get():
-            _, input_ext = os.path.splitext(self.input_file.get().lower())
-            input_is_json = input_ext == '.json'
-        
         if self.file_type.get() == ".json":
-            # Output is JSON - disable delimiter options
+            # Output is JSON - disable delimiter options (JSON doesn't use delimiters)
             self.use_custom_delim.set(False)
             self.delim_checkbox.state(["disabled"])
             self.retain_header_checkbox.state(["disabled"])  # Header doesn't apply to JSON output
             self.toggle_delim_fields()
         else:
-            # Output is not JSON - enable options based on input type
+            # Output is not JSON - enable delimiter and header options if file is selected
             if self.input_file.get():
-                if input_is_json:
-                    # JSON input to non-JSON output: disable delimiter (not applicable to JSON input)
-                    # but enable header option for output format
-                    self.delim_checkbox.state(["disabled"])
-                    self.retain_header_checkbox.state(["!disabled"])
-                    self.use_custom_delim.set(False)
-                    self.toggle_delim_fields()
-                else:
-                    # Non-JSON input to non-JSON output: enable both options
-                    self.delim_checkbox.state(["!disabled"])
-                    self.retain_header_checkbox.state(["!disabled"])
+                # Enable delimiter options for delimited output formats (CSV, TXT, DAT)
+                # regardless of input format (CSV, TXT, DAT, or JSON)
+                self.delim_checkbox.state(["!disabled"])
+                self.retain_header_checkbox.state(["!disabled"])
             # If no file selected, keep everything disabled
 
     def on_delimiter_change(self, *args):
@@ -673,16 +660,11 @@ class FileSplitterApp:
             self.delim_display.config(foreground=normal_color)
 
     def toggle_delim_fields(self):
-        # Check if input file is JSON
-        input_is_json = False
-        if self.input_file.get():
-            _, input_ext = os.path.splitext(self.input_file.get().lower())
-            input_is_json = input_ext == '.json'
-            
+        # Delimiter fields are only relevant when OUTPUT format uses delimiters (CSV, TXT, DAT)
+        # They are NOT relevant when output format is JSON, regardless of input format
         show_current_delim = (self.use_custom_delim.get() and 
                              self.input_file.get() and 
-                             self.file_type.get() != ".json" and
-                             not input_is_json)  # Don't show for JSON input
+                             self.file_type.get() != ".json")  # Only check output format
         
         # Show/hide by matching background color or using normal text color
         if show_current_delim:
@@ -703,11 +685,10 @@ class FileSplitterApp:
             self.delim_label.config(foreground=bg_color)
             self.delim_display.config(foreground=bg_color)
         
-        # Enable/disable the new delimiter entry based on checkbox state and file types
+        # Enable/disable the delimiter entry - only relevant for delimited output formats
         if (self.use_custom_delim.get() and 
             self.input_file.get() and 
-            self.file_type.get() != ".json" and
-            not input_is_json):
+            self.file_type.get() != ".json"):  # Only check output format
             self.set_delim_entry.config(state="normal")
         else:
             self.set_delim_entry.config(state="disabled")
@@ -1406,27 +1387,15 @@ class FileSplitterApp:
             self.output_browse_button.config(state="normal")
             self.column_select_button.config(state="normal")
             
-            # Check if input file is JSON
-            _, input_ext = os.path.splitext(self.input_file.get().lower())
-            is_json_input = input_ext == '.json'
-            
-            if is_json_input:
-                # For JSON input files, disable delimiter settings as they don't apply
-                self.delim_checkbox.state(["disabled"])
-                self.use_custom_delim.set(False)
-                self.toggle_delim_fields()
-                # Enable header checkbox for JSON input (applies to output format)
+            # Enable delimiter and header options based on OUTPUT format
+            if self.file_type.get() != ".json":
+                # Output format uses delimiters - enable delimiter options regardless of input format
+                self.delim_checkbox.state(["!disabled"])
                 self.retain_header_checkbox.state(["!disabled"])
             else:
-                # Enable delimiter and header checkboxes for non-JSON input files
-                # But only enable if output format is not JSON
-                if self.file_type.get() != ".json":
-                    self.delim_checkbox.state(["!disabled"])
-                    self.retain_header_checkbox.state(["!disabled"])
-                else:
-                    # Output is JSON, so disable delimiter but keep header option
-                    self.delim_checkbox.state(["disabled"])
-                    self.retain_header_checkbox.state(["disabled"])
+                # Output is JSON - disable delimiter and header options
+                self.delim_checkbox.state(["disabled"])
+                self.retain_header_checkbox.state(["disabled"])
                     
             # Clear previous stats when new file selected
             self.total_rows.set("")

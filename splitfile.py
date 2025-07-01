@@ -170,7 +170,7 @@ class FileSplitterApp:
             print(f"Warning: Could not load icon. {e}")
         
         self.root.geometry("450x750")  # Increased height slightly for new button
-        self.root.resizable(True, True)
+        self.root.resizable(False, False)
         
         # Configure style
         self.setup_styles()

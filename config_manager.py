@@ -1,11 +1,12 @@
 import os
 import json
+import platform
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 class ConfigManager:
     def __init__(self):
-        self.config_file = "settings.json"
+        self.config_filename = "config.json"
         self.default_settings = {
             "open_dir_after_split": False,
             "enable_logging": True,
@@ -14,28 +15,97 @@ class ConfigManager:
         }
         self.settings = self.load_settings()
     
+    def get_config_path(self):
+        """Get the OS-appropriate configuration file path"""
+        app_name = "FileSplitterPro"
+        
+        system = platform.system()
+        
+        try:
+            if system == "Windows":
+                # Windows: %APPDATA%\FileSplitterPro\config.json
+                config_dir = os.path.join(os.environ.get('APPDATA', ''), app_name)
+            elif system == "Darwin":  # macOS
+                # macOS: ~/Library/Application Support/FileSplitterPro/config.json
+                home = os.path.expanduser("~")
+                config_dir = os.path.join(home, "Library", "Application Support", app_name)
+            else:  # Linux and others
+                # Linux: ~/.config/FileSplitterPro/config.json (respects XDG_CONFIG_HOME)
+                xdg_config = os.environ.get('XDG_CONFIG_HOME')
+                if xdg_config:
+                    config_dir = os.path.join(xdg_config, app_name)
+                else:
+                    home = os.path.expanduser("~")
+                    config_dir = os.path.join(home, ".config", app_name)
+            
+            # Create directory if it doesn't exist
+            os.makedirs(config_dir, exist_ok=True)
+            return os.path.join(config_dir, self.config_filename)
+            
+        except (OSError, KeyError, TypeError) as e:
+            print(f"Warning: Could not access system config directory: {e}")
+            # Fallback to current directory
+            return self.config_filename
+    
+    def migrate_old_config(self, new_path):
+        """Migrate old settings.json from current directory to new location"""
+        old_config = "settings.json"
+        if os.path.exists(old_config) and not os.path.exists(new_path):
+            try:
+                with open(old_config, 'r') as f:
+                    old_settings = json.load(f)
+                
+                # Save to new location
+                with open(new_path, 'w') as f:
+                    json.dump(old_settings, f, indent=2)
+                
+                print(f"Migrated settings from {old_config} to {new_path}")
+                
+                # Optionally remove old file (commented out for safety)
+                # os.remove(old_config)
+                
+                return old_settings
+            except Exception as e:
+                print(f"Warning: Could not migrate old config: {e}")
+        
+        return None
+    
     def load_settings(self):
         """Load settings from config file or use defaults"""
+        config_path = self.get_config_path()
+        
+        # Try to migrate from old location first
+        migrated_settings = self.migrate_old_config(config_path)
+        if migrated_settings:
+            # Merge with defaults to ensure all keys exist
+            settings = self.default_settings.copy()
+            settings.update(migrated_settings)
+            return settings
+        
+        # Load from new location
         try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r') as f:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
                     loaded_settings = json.load(f)
                 # Merge with defaults to ensure all keys exist
                 settings = self.default_settings.copy()
                 settings.update(loaded_settings)
                 return settings
         except Exception as e:
-            print(f"Error loading settings: {e}")
+            print(f"Error loading settings from {config_path}: {e}")
         
         return self.default_settings.copy()
     
     def save_settings(self):
         """Save current settings to config file"""
+        config_path = self.get_config_path()
         try:
-            with open(self.config_file, 'w') as f:
+            with open(config_path, 'w') as f:
                 json.dump(self.settings, f, indent=2)
+            return True
         except Exception as e:
-            print(f"Error saving settings: {e}")
+            print(f"Error saving settings to {config_path}: {e}")
+            return False
     
     def get(self, key):
         """Get a setting value"""
@@ -58,16 +128,16 @@ class SettingsWindow:
         # Create window
         self.window = tk.Toplevel(parent)
         self.window.title("Settings")
-        self.window.geometry("330x300")
+        self.window.geometry("340x300")
         self.window.resizable(False, False)
         self.window.transient(parent)
         self.window.grab_set()
         
         # Center the window
         self.window.update_idletasks()
-        x = (self.window.winfo_screenwidth() // 2) - (450 // 2)
+        x = (self.window.winfo_screenwidth() // 2) - (340 // 2)
         y = (self.window.winfo_screenheight() // 2) - (300 // 2)
-        self.window.geometry(f"330x300+{x}+{y}")
+        self.window.geometry(f"340x300+{x}+{y}")
         
         # Initialize variables with current settings
         self.open_dir_after_split = tk.BooleanVar(value=self.config_manager.get("open_dir_after_split"))
@@ -121,9 +191,9 @@ class SettingsWindow:
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
         
-        ttk.Button(button_frame, text="OK", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
+        ttk.Button(button_frame, text="Save", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
         ttk.Button(button_frame, text="Cancel", command=self.cancel_clicked).grid(row=0, column=1, padx=(0, 10))
-        ttk.Button(button_frame, text="Reset to Defaults", command=self.reset_defaults).grid(row=0, column=2)
+        ttk.Button(button_frame, text="Reset to Defaults", command=self.reset_defaults, width=18).grid(row=0, column=2)
         
     def reset_defaults(self):
         """Reset all settings to defaults"""
@@ -133,15 +203,21 @@ class SettingsWindow:
         self.retain_header.set(self.config_manager.default_settings["retain_header"])
         
     def ok_clicked(self):
-        """User clicked OK - save settings"""
+        """User clicked OK - update settings and attempt to save"""
         # Update config manager with new values
         self.config_manager.set("open_dir_after_split", self.open_dir_after_split.get())
         self.config_manager.set("enable_logging", self.enable_logging.get())
         self.config_manager.set("default_output_file_type", self.default_output_file_type.get())
         self.config_manager.set("retain_header", self.retain_header.get())
         
-        # Save to file
-        self.config_manager.save_settings()
+        # Attempt to save to file
+        save_success = self.config_manager.save_settings()
+        if not save_success:
+            messagebox.showwarning(
+                "Save Warning", 
+                "Settings were updated but could not be saved to disk. "
+                "They will be lost when the application closes."
+            )
         
         self.result = True
         self.window.destroy()

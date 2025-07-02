@@ -23,11 +23,13 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **📂 Easy File Selection**: Drag, drop, or browse for files
 - **📁 Custom Output Directory**: Choose where your split files go
 - **🎛️ Interactive Column Selector**: Intuitive two-panel interface for column management
+- **🎛️ Settings Window**: Centralized configuration management with persistent settings
+- **📋 Menu System**: File and Edit menus with keyboard shortcuts
 - **🚀 Threaded Processing**: Non-blocking UI during file operations
 - **📊 Real-time Statistics**: Live dashboard showing progress, file count, and processing stats
 - **🎯 Progress Tracking**: Visual progress bar with percentage completion
 - **🔄 Reset Functionality**: Clear all statistics and Split Settings to start fresh with existing source file
-- **⌨️ Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help
+- **⌨️ Enhanced Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help, Ctrl+S for settings
 - **🎨 Visual Feedback**: Color-coded progress indicators for success/failure
 - **📋 Enhanced Logging**: Comprehensive logs with file details, column selection, and validation results
 
@@ -52,6 +54,33 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **🛡️ Safe Processing**: Preserves original files during splitting
 - **📝 Operation Logging**: Optional detailed logs with timestamps, column selection, and validation
 - **🎯 Precise Splitting**: Accurate size and row count splitting algorithms
+- **💾 OS-Appropriate Config Storage**: Settings automatically saved to system-appropriate locations (AppData on Windows, Application Support on macOS, .config on Linux)
+- **🔄 Configuration Migration**: Automatic migration from old settings files
+- **🎛️ Enhanced Delimiter Interface**: Streamlined custom delimiter input with automatic population
+
+---
+
+## ⚙️ Settings
+
+### 🎛️ **Configuration Window**
+Access comprehensive application settings through **Edit → Settings** (or Ctrl+S):
+
+- **📂 Open Directory After Split**: Automatically open the output folder when splitting completes
+- **📝 Enable Logging**: Control whether detailed operation logs are created
+- **🎯 Default Output File Type**: Set your preferred output format (CSV, TXT, DAT, or JSON)
+- **📋 Retain Header Row (Default)**: Control whether header rows are included in split files by default
+
+### 💾 **Persistent Storage**
+Settings are automatically saved to OS-appropriate locations:
+- **Windows**: `%APPDATA%\FileSplitterPro\config.json`
+- **macOS**: `~/Library/Application Support/FileSplitterPro/config.json`
+- **Linux**: `~/.config/FileSplitterPro/config.json`
+
+### 🔄 **Migration & Backup**
+- Automatic migration from old settings files
+- Settings persist across application updates
+- Included in user data backups
+- Separate settings per user on shared machines
 
 ---
 
@@ -99,8 +128,7 @@ Click **Select Columns...** to choose which columns to include in your split fil
 ### Step 5: 🔧 Fine-tune (Optional)
 - **Delimiter Settings**: Let the app auto-detect or specify your own (CSV/TXT/DAT only)
 - **Output Format**: Choose between CSV, TXT, DAT, or JSON output
-- **Directory Options**: Automatically open output folder when complete
-- **Logging**: Keep detailed logs of your operations (recommended!)
+- **Settings**: Access Edit → Settings to configure default behaviors
 
 ### Step 6: ✂️ Split!
 Click **Run** and watch the real-time progress! ✨
@@ -157,6 +185,7 @@ Click **Run** and watch the real-time progress! ✨
 ### Keyboard Shortcuts
 - **Ctrl+Q**: Quick exit
 - **Ctrl+D**: Open documentation/help
+- **Ctrl+S**: Open settings window
 
 ---
 
@@ -179,8 +208,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Author
 
-- 🐙 Developed by Jack Worthen [@jackworthen](https://github.com/jackworthen)
+- 🐙 Developed by [@jackworthen](https://github.com/jackworthen)
 
----
-
-### 🌟 If this project helped you, give it a star! ⭐

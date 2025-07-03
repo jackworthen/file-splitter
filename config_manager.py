@@ -128,16 +128,16 @@ class SettingsWindow:
         # Create window
         self.window = tk.Toplevel(parent)
         self.window.title("Settings")
-        self.window.geometry("340x300")
+        self.window.geometry("340x280")
         self.window.resizable(False, False)
         self.window.transient(parent)
         self.window.grab_set()
         
         # Center the window
         self.window.update_idletasks()
-        x = (self.window.winfo_screenwidth() // 2) - (340 // 2)
-        y = (self.window.winfo_screenheight() // 2) - (300 // 2)
-        self.window.geometry(f"340x300+{x}+{y}")
+        x = (self.window.winfo_screenwidth() // 2) - (380 // 2)
+        y = (self.window.winfo_screenheight() // 2) - (350 // 2)
+        self.window.geometry(f"340x280+{x}+{y}")
         
         # Initialize variables with current settings
         self.open_dir_after_split = tk.BooleanVar(value=self.config_manager.get("open_dir_after_split"))
@@ -158,33 +158,44 @@ class SettingsWindow:
                                font=("Segoe UI", 12, "bold"))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky="w")
         
-        # Settings frame
-        settings_frame = ttk.LabelFrame(main_frame, text="General Settings", padding=15)
-        settings_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 20))
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 20))
         
-        # Open Directory After Split
-        ttk.Checkbutton(settings_frame, text="Open Directory After Split", 
-                       variable=self.open_dir_after_split).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
+        # General Tab
+        general_frame = ttk.Frame(notebook, padding=20)
+        notebook.add(general_frame, text="General")
         
-        # Enable Logging
-        ttk.Checkbutton(settings_frame, text="Enable Logging", 
-                       variable=self.enable_logging).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 12))
+        # Open Output Directory
+        ttk.Checkbutton(general_frame, text="Open Output Directory", 
+                       variable=self.open_dir_after_split).grid(row=0, column=0, sticky="w", pady=(0, 15))
+        
+        # Split Tab
+        split_frame = ttk.Frame(notebook, padding=20)
+        notebook.add(split_frame, text="Split")
         
         # Retain Header Row
-        ttk.Checkbutton(settings_frame, text="Retain Header Row (Default)", 
-                       variable=self.retain_header).grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 15))
+        ttk.Checkbutton(split_frame, text="Retain Header Row (Default)", 
+                       variable=self.retain_header).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 15))
         
         # Default Output File Type
-        file_type_frame = ttk.Frame(settings_frame)
-        file_type_frame.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 0))
+        file_type_frame = ttk.Frame(split_frame)
+        file_type_frame.grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 15))
         
         ttk.Label(file_type_frame, text="Default Output File Type:").pack(side="left")
         file_type_combo = ttk.Combobox(file_type_frame, textvariable=self.default_output_file_type, 
                                       values=[".csv", ".txt", ".dat", ".json"], width=10, state="readonly")
-        file_type_combo.pack(side="left", padx=(5, 0))
+        file_type_combo.pack(side="left", padx=(10, 0))
+        
+        # Logging Tab
+        logging_frame = ttk.Frame(notebook, padding=20)
+        notebook.add(logging_frame, text="Logging")
+        
+        # Enable Logging
+        ttk.Checkbutton(logging_frame, text="Enable Logging", 
+                       variable=self.enable_logging).grid(row=0, column=0, sticky="w", pady=(0, 15))
         
         # Configure grid weights
-        settings_frame.columnconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         
         # Bottom buttons

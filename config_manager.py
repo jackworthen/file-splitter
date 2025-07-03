@@ -13,7 +13,8 @@ class ConfigManager:
             "default_output_file_type": ".csv",
             "retain_header": True,
             "use_default_output_dir": False,
-            "default_output_dir": ""
+            "default_output_dir": "",
+            "default_split_mode": "size"
         }
         self.settings = self.load_settings()
     
@@ -148,6 +149,7 @@ class SettingsWindow:
         self.retain_header = tk.BooleanVar(value=self.config_manager.get("retain_header"))
         self.use_default_output_dir = tk.BooleanVar(value=self.config_manager.get("use_default_output_dir"))
         self.default_output_dir = tk.StringVar(value=self.config_manager.get("default_output_dir"))
+        self.default_split_mode = tk.StringVar(value=self.config_manager.get("default_split_mode"))
         
         self.create_widgets()
         
@@ -205,6 +207,25 @@ class SettingsWindow:
                                       values=[".csv", ".txt", ".dat", ".json"], width=10, state="readonly")
         file_type_combo.pack(side="left", padx=(10, 0))
         
+        # Default Split Mode
+        split_mode_frame = ttk.Frame(split_frame)
+        split_mode_frame.grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 15))
+        
+        ttk.Label(split_mode_frame, text="Split by (Default):").pack(side="left")
+        
+        # Create a mapping between display text and actual values
+        self.split_mode_options = {"Size (MB)": "size", "Rows": "rows"}
+        self.split_mode_display = {v: k for k, v in self.split_mode_options.items()}
+        
+        # Set the display value based on the current setting
+        current_mode = self.config_manager.get("default_split_mode")
+        display_value = self.split_mode_display.get(current_mode, "Size (MB)")
+        self.default_split_mode_display = tk.StringVar(value=display_value)
+        
+        split_mode_combo = ttk.Combobox(split_mode_frame, textvariable=self.default_split_mode_display, 
+                                       values=list(self.split_mode_options.keys()), width=10, state="readonly")
+        split_mode_combo.pack(side="left", padx=(10, 0))
+        
         # Logging Tab
         logging_frame = ttk.Frame(notebook, padding=15)
         notebook.add(logging_frame, text="Logging")
@@ -249,6 +270,12 @@ class SettingsWindow:
         self.retain_header.set(self.config_manager.default_settings["retain_header"])
         self.use_default_output_dir.set(self.config_manager.default_settings["use_default_output_dir"])
         self.default_output_dir.set(self.config_manager.default_settings["default_output_dir"])
+        
+        # Reset split mode display
+        default_mode = self.config_manager.default_settings["default_split_mode"]
+        display_value = self.split_mode_display.get(default_mode, "Size (MB)")
+        self.default_split_mode_display.set(display_value)
+        
         self.toggle_output_dir_entry()
         
     def ok_clicked(self):
@@ -276,6 +303,11 @@ class SettingsWindow:
         self.config_manager.set("retain_header", self.retain_header.get())
         self.config_manager.set("use_default_output_dir", self.use_default_output_dir.get())
         self.config_manager.set("default_output_dir", self.default_output_dir.get())
+        
+        # Convert display value back to actual value for split mode
+        display_value = self.default_split_mode_display.get()
+        actual_value = self.split_mode_options.get(display_value, "size")
+        self.config_manager.set("default_split_mode", actual_value)
         
         # Attempt to save to file
         save_success = self.config_manager.save_settings()

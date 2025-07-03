@@ -185,7 +185,7 @@ class FileSplitterApp:
         self.max_rows = tk.StringVar()
         self.file_type = tk.StringVar(value=self.config_manager.get("default_output_file_type"))
         self.output_dir = tk.StringVar()
-        self.split_mode = tk.StringVar(value="size")
+        self.split_mode = tk.StringVar(value=self.config_manager.get("default_split_mode"))
         self.use_custom_delim = tk.BooleanVar(value=False)
         self.custom_delimiter = tk.StringVar(value="")
         self.detected_delimiter = tk.StringVar(value="")
@@ -226,6 +226,9 @@ class FileSplitterApp:
         
         # Set initial state of output directory controls
         self.update_output_directory_state()
+        
+        # Set initial state of split mode controls
+        self.toggle_mode()
         
         # Set up keyboard shortcuts
         self.setup_keyboard_shortcuts()
@@ -302,6 +305,12 @@ class FileSplitterApp:
             current_default = self.config_manager.get("default_output_file_type")
             if not self.input_file.get():  # Only change if no file is loaded
                 self.file_type.set(current_default)
+                
+            # Update split mode to new default if user hasn't manually changed it
+            current_split_mode = self.config_manager.get("default_split_mode")
+            if not self.input_file.get():  # Only change if no file is loaded
+                self.split_mode.set(current_split_mode)
+                self.toggle_mode()  # Update the entry states based on new split mode
             
             # Update output directory if custom directory is set
             if (self.config_manager.get("use_default_output_dir") and 
@@ -1344,7 +1353,7 @@ class FileSplitterApp:
         self.output_dir.set("")  # Clear output directory
         
         # Reset Split Settings
-        self.split_mode.set("size")  # Reset to default split mode
+        self.split_mode.set(self.config_manager.get("default_split_mode"))  # Reset to config default
         self.max_size.set("")  # Clear size value
         self.max_rows.set("")  # Clear rows value
         self.file_type.set(self.config_manager.get("default_output_file_type"))  # Reset to config default

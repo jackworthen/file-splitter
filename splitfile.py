@@ -6,7 +6,6 @@ from tkinter import ttk, filedialog, messagebox, Menu
 import webbrowser
 import time
 import json
-from config_manager import ConfigManager
 
 class ColumnSelectionWindow:
     def __init__(self, parent, columns, selected_columns):
@@ -170,11 +169,8 @@ class FileSplitterApp:
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
         
-        self.root.geometry("450x700")  # Reduced height since we removed some checkboxes
+        self.root.geometry("450x750")  # Increased height slightly for new button
         self.root.resizable(False, False)
-        
-        # Initialize configuration manager
-        self.config_manager = ConfigManager()
         
         # Configure style
         self.setup_styles()
@@ -183,18 +179,15 @@ class FileSplitterApp:
         self.input_file = tk.StringVar()
         self.max_size = tk.StringVar()
         self.max_rows = tk.StringVar()
-        self.file_type = tk.StringVar(value=self.config_manager.get("default_output_file_type"))
+        self.file_type = tk.StringVar(value=".csv")
         self.output_dir = tk.StringVar()
-        self.split_mode = tk.StringVar(value=self.config_manager.get("default_split_mode"))
+        self.split_mode = tk.StringVar(value="size")
         self.use_custom_delim = tk.BooleanVar(value=False)
         self.custom_delimiter = tk.StringVar(value="")
         self.detected_delimiter = tk.StringVar(value="")
-
-        # Initialize output directory from saved settings
-        if (self.config_manager.get("use_default_output_dir") and 
-            self.config_manager.get("default_output_dir") and 
-            os.path.exists(self.config_manager.get("default_output_dir"))):
-            self.output_dir.set(self.config_manager.get("default_output_dir").replace('\\', '/'))
+        self.open_dir_after_split = tk.BooleanVar(value=False)
+        self.create_log = tk.BooleanVar(value=True)
+        self.retain_header = tk.BooleanVar(value=True)  # NEW: Default to retaining header
 
         # Column selection variables
         self.available_columns = []
@@ -222,13 +215,7 @@ class FileSplitterApp:
         self.create_widgets()
         self.input_file.trace_add("write", self.on_input_file_change)
         self.file_type.trace_add("write", self.on_file_type_change)
-        self.output_dir.trace_add("write", self.on_output_dir_change)
-        
-        # Set initial state of output directory controls
-        self.update_output_directory_state()
-        
-        # Set initial state of split mode controls
-        self.toggle_mode()
+        self.detected_delimiter.trace_add("write", self.on_delimiter_change)
         
         # Set up keyboard shortcuts
         self.setup_keyboard_shortcuts()
@@ -275,10 +262,6 @@ class FileSplitterApp:
         file_menu.add_command(label="Exit", command=self.root.quit, accelerator="Ctrl+Q")
         menubar.add_cascade(label="File", menu=file_menu)
 
-        edit_menu = Menu(menubar, tearoff=0)
-        edit_menu.add_command(label="Settings", command=self.open_settings, accelerator="Ctrl+S")
-        menubar.add_cascade(label="Edit", menu=edit_menu)
-
         help_menu = Menu(menubar, tearoff=0)
         help_menu.add_command(label="Documentation", command=self.open_help, accelerator="Ctrl+D")
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -289,36 +272,8 @@ class FileSplitterApp:
         """Set up keyboard shortcuts"""
         self.root.bind('<Control-q>', lambda e: self.root.quit())
         self.root.bind('<Control-Q>', lambda e: self.root.quit())
-        self.root.bind('<Control-s>', lambda e: self.open_settings())
-        self.root.bind('<Control-S>', lambda e: self.open_settings())
         self.root.bind('<Control-d>', lambda e: self.open_help())
         self.root.bind('<Control-D>', lambda e: self.open_help())
-
-    def open_settings(self):
-        """Open the settings window"""
-        settings_window = self.config_manager.open_settings_window(self.root)
-        self.root.wait_window(settings_window.window)
-        
-        # If settings were changed, update relevant fields
-        if settings_window.result:
-            # Update file type to new default if user hasn't manually changed it
-            current_default = self.config_manager.get("default_output_file_type")
-            if not self.input_file.get():  # Only change if no file is loaded
-                self.file_type.set(current_default)
-                
-            # Update split mode to new default if user hasn't manually changed it
-            current_split_mode = self.config_manager.get("default_split_mode")
-            if not self.input_file.get():  # Only change if no file is loaded
-                self.split_mode.set(current_split_mode)
-                self.toggle_mode()  # Update the entry states based on new split mode
-            
-            # Update output directory if custom directory is set
-            if (self.config_manager.get("use_default_output_dir") and 
-                self.config_manager.get("default_output_dir") and 
-                os.path.exists(self.config_manager.get("default_output_dir"))):
-                self.output_dir.set(self.config_manager.get("default_output_dir").replace('\\', '/'))
-            elif not self.input_file.get():  # Clear output directory if no custom dir and no file selected
-                self.output_dir.set("")
 
     def open_help(self):
         webbrowser.open("https://github.com/jackworthen/file-splitter")
@@ -344,18 +299,25 @@ class FileSplitterApp:
         self.output_browse_button = ttk.Button(output_frame, text="Browse", command=self.select_output_directory, state="disabled")
         self.output_browse_button.grid(row=0, column=1, pady=5)
         
+        ttk.Checkbutton(output_frame, text="Open Directory After Split", variable=self.open_dir_after_split).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
+        ttk.Checkbutton(output_frame, text="Enable Logging", variable=self.create_log).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
         output_frame.columnconfigure(0, weight=1)
 
         # Split Settings Section
         settings_frame = ttk.LabelFrame(main_frame, text="Split Settings", padding=10, style="Bold.TLabelframe")
         settings_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
-        # Column Selection Button - row 0
+        # Column Selection Button and Header Retention Checkbox - row 0
         self.column_select_button = ttk.Button(settings_frame, text="Select Columns...", 
                                              command=self.open_column_selection, state="disabled")
         self.column_select_button.grid(row=0, column=0, pady=(0, 10), sticky="w")
         
-        # Split mode selection - row 1 - using sub-frames for tighter control
+        # NEW: Retain Header Row checkbox - moved closer to the button
+        self.retain_header_checkbox = ttk.Checkbutton(settings_frame, text="Retain Header Row", 
+                                                     variable=self.retain_header, state="disabled")
+        self.retain_header_checkbox.grid(row=0, column=1, pady=(0, 10), sticky="w", padx=(10, 0))
+        
+        # Split mode selection - moved to row 1 - using sub-frames for tighter control
         split_mode_frame = ttk.Frame(settings_frame)
         split_mode_frame.grid(row=1, column=0, columnspan=4, sticky="w", pady=(0, 0))
         
@@ -369,30 +331,34 @@ class FileSplitterApp:
         self.row_entry = ttk.Entry(split_mode_frame, textvariable=self.max_rows, width=10, state="disabled")
         self.row_entry.pack(side="left", padx=(5, 0))
         
-        # File type selection - row 2
-        file_type_frame = ttk.Frame(settings_frame)
-        file_type_frame.grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 0))
-        
-        ttk.Label(file_type_frame, text="Output file type:").pack(side="left")
-        ttk.Combobox(file_type_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).pack(side="left", padx=(5, 0))
+        # File type selection - moved to row 2
+        ttk.Label(settings_frame, text="Output file type:").grid(row=2, column=0, pady=(10, 0), sticky="w")
+        ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).grid(row=2, column=1, pady=(10, 0), sticky="w")
 
-        # Delimiter settings - row 3
-        delimiter_frame = ttk.Frame(settings_frame)
-        delimiter_frame.grid(row=3, column=0, columnspan=2, sticky="w", pady=(10, 0))
-        
-        self.delim_checkbox = ttk.Checkbutton(delimiter_frame, text="Custom Delimiter", 
+        # Delimiter settings - moved to row 3
+        self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", 
                                             variable=self.use_custom_delim, command=self.toggle_delim_fields)
         self.delim_checkbox.state(["disabled"])
-        self.delim_checkbox.pack(side="left")
+        self.delim_checkbox.grid(row=3, column=0, pady=(10, 0), sticky="w")
 
-        self.set_delim_entry = ttk.Entry(delimiter_frame, textvariable=self.custom_delimiter, width=5, state="disabled", justify="center")
+        self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5, state="disabled", justify="center")
         self.set_delim_entry.config(validate="key", 
                                   validatecommand=(self.root.register(self.validate_delimiter), "%P"))
-        self.set_delim_entry.pack(side="left", padx=(5, 0))
+        self.set_delim_entry.grid(row=3, column=1, pady=(10, 0), sticky="w", padx=(10, 0))
+
+        # Move Current Delimiter label and display to the right of the input box
+        # Use fixed width to prevent layout shifts
+        self.delim_label = ttk.Label(settings_frame, text="Current Delimiter:", width=16)
+        self.delim_display = ttk.Label(settings_frame, textvariable=self.detected_delimiter, width=5)
+
+        self.delim_label.grid(row=3, column=2, sticky="w", padx=(15, 5), pady=(10, 0))
+        self.delim_display.grid(row=3, column=3, sticky="w", pady=(10, 0))
         
         # Configure column weights to maintain stable layout
         settings_frame.columnconfigure(0, weight=1)
         settings_frame.columnconfigure(1, weight=0)
+        settings_frame.columnconfigure(2, weight=0)
+        settings_frame.columnconfigure(3, weight=0)
 
         # Stats Section
         stats_frame_outer = ttk.LabelFrame(main_frame, text="Statistics", padding=10, style="Bold.TLabelframe")
@@ -507,14 +473,7 @@ class FileSplitterApp:
                 )
                 return
             
-            # Check if user has enabled default output directory
-            if (self.config_manager.get("use_default_output_dir") and 
-                self.config_manager.get("default_output_dir") and 
-                os.path.exists(self.config_manager.get("default_output_dir"))):
-                default_out = self.config_manager.get("default_output_dir")
-            else:
-                default_out = os.path.join(os.path.dirname(path), 'split_files')
-            
+            default_out = os.path.join(os.path.dirname(path), 'split_files')
             self.output_dir.set(default_out.replace('\\', '/'))
             self.input_file.set(path)
             self.delim_checkbox.state(["!disabled"])
@@ -531,7 +490,6 @@ class FileSplitterApp:
                         sniffer = csv.Sniffer()
                         dialect = sniffer.sniff(sample)
                         self.detected_delimiter.set(dialect.delimiter)
-                        # Don't put detected delimiter in the custom delimiter box yet
                 except Exception as e:
                     self.detected_delimiter.set(',')
                     print(f"Could not detect delimiter: {e}")
@@ -596,8 +554,13 @@ class FileSplitterApp:
                     sample = f.read(2048)
                     f.seek(0)
                     
-                    # Use the detected delimiter for reading headers
-                    delimiter = self.detected_delimiter.get() or ','
+                    # Detect delimiter
+                    sniffer = csv.Sniffer()
+                    try:
+                        dialect = sniffer.sniff(sample)
+                        delimiter = dialect.delimiter
+                    except:
+                        delimiter = ','
                     
                     # Read header row
                     reader = csv.reader(f, delimiter=delimiter)
@@ -675,33 +638,63 @@ class FileSplitterApp:
             self.row_entry.config(state="normal")
 
     def on_file_type_change(self, *args):
-        """Handle file type changes to enable/disable delimiter options"""
+        """Handle file type changes to enable/disable delimiter and header options"""
         if self.file_type.get() == ".json":
             # Output is JSON - disable delimiter options (JSON doesn't use delimiters)
             self.use_custom_delim.set(False)
             self.delim_checkbox.state(["disabled"])
-            self.custom_delimiter.set("")  # Clear custom delimiter for JSON output
+            self.retain_header_checkbox.state(["disabled"])  # Header doesn't apply to JSON output
             self.toggle_delim_fields()
         else:
-            # Output is not JSON - enable delimiter options if file is selected
+            # Output is not JSON - enable delimiter and header options if file is selected
             if self.input_file.get():
                 # Enable delimiter options for delimited output formats (CSV, TXT, DAT)
                 # regardless of input format (CSV, TXT, DAT, or JSON)
                 self.delim_checkbox.state(["!disabled"])
+                self.retain_header_checkbox.state(["!disabled"])
+            # If no file selected, keep everything disabled
+
+    def on_delimiter_change(self, *args):
+        """Handle changes to detected delimiter"""
+        # The delimiter display is bound to the StringVar, so it updates automatically
+        # We just need to ensure color is correct if currently visible
+        if self.use_custom_delim.get() and self.input_file.get() and self.file_type.get() != ".json":
+            normal_color = self.root.tk.eval("ttk::style lookup TLabel -foreground") or "black"
+            self.delim_display.config(foreground=normal_color)
 
     def toggle_delim_fields(self):
+        # Delimiter fields are only relevant when OUTPUT format uses delimiters (CSV, TXT, DAT)
+        # They are NOT relevant when output format is JSON, regardless of input format
+        show_current_delim = (self.use_custom_delim.get() and 
+                             self.input_file.get() and 
+                             self.file_type.get() != ".json")  # Only check output format
+        
+        # Show/hide by matching background color or using normal text color
+        if show_current_delim:
+            # Use normal text color when visible
+            normal_color = self.root.tk.eval("ttk::style lookup TLabel -foreground") or "black"
+            self.delim_label.config(foreground=normal_color)
+            self.delim_display.config(foreground=normal_color)
+        else:
+            # Match background color to make invisible
+            try:
+                bg_color = self.root.tk.eval("ttk::style lookup TLabel -background")
+                if not bg_color:
+                    bg_color = self.root.tk.eval("ttk::style lookup TLabelframe -background")
+                if not bg_color:
+                    bg_color = self.root.cget("bg")
+            except:
+                bg_color = "SystemButtonFace"  # Windows fallback
+            self.delim_label.config(foreground=bg_color)
+            self.delim_display.config(foreground=bg_color)
+        
         # Enable/disable the delimiter entry - only relevant for delimited output formats
         if (self.use_custom_delim.get() and 
             self.input_file.get() and 
             self.file_type.get() != ".json"):  # Only check output format
             self.set_delim_entry.config(state="normal")
-            # Populate with detected delimiter when enabling (only if empty)
-            if not self.custom_delimiter.get() and self.detected_delimiter.get():
-                self.custom_delimiter.set(self.detected_delimiter.get())
         else:
             self.set_delim_entry.config(state="disabled")
-            # Clear the custom delimiter when disabling
-            self.custom_delimiter.set("")
 
     def start_threaded_split(self):
         file_path = self.input_file.get()
@@ -713,7 +706,7 @@ class FileSplitterApp:
             messagebox.showwarning("Warning", "Please select a file to split.")
             return
 
-        # Validate input file type before proceeding
+        # NEW: Validate input file type before proceeding
         if not self.is_supported_input_file_type(file_path):
             _, ext = os.path.splitext(file_path)
             messagebox.showwarning(
@@ -764,7 +757,7 @@ class FileSplitterApp:
         # Show percentage label
         self.progress_label.grid()
 
-        delim = self.custom_delimiter.get() or self.detected_delimiter.get() or ','
+        delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
         thread = threading.Thread(target=self.split_file, 
                                 args=(file_path, out_dir, mode, value, extension, delim))
         thread.daemon = True
@@ -852,8 +845,8 @@ class FileSplitterApp:
             else:
                 # Handle CSV/TXT/DAT input
                 with open(input_file, 'r', newline='', encoding='utf-8') as infile:
-                    current_delimiter = custom_delimiter or ','
-                    reader = csv.reader(infile, delimiter=current_delimiter)
+                    detected_delimiter = self.detected_delimiter.get() or ','
+                    reader = csv.reader(infile, delimiter=detected_delimiter)
                     header = next(reader)  # Read and store header
                     
                     # Filter header to only include selected columns
@@ -892,7 +885,7 @@ class FileSplitterApp:
             max_size_bytes = size_or_rows * 1024 * 1024 if mode == "size" else None
             max_rows = size_or_rows if mode == "rows" else None
             is_json_format = file_extension == ".json"
-            include_header = self.config_manager.get("retain_header")  # Use config setting
+            include_header = self.retain_header.get()  # NEW: Get header retention setting
 
             if is_json_input:
                 # Process JSON input data
@@ -1039,8 +1032,8 @@ class FileSplitterApp:
             else:
                 # Handle CSV/TXT/DAT input (existing logic)
                 with open(input_file, 'r', newline='', encoding='utf-8') as infile:
-                    current_delimiter = custom_delimiter or ','
-                    reader = csv.reader(infile, delimiter=current_delimiter)
+                    detected_delimiter = self.detected_delimiter.get() or ','
+                    reader = csv.reader(infile, delimiter=detected_delimiter)
                     header = next(reader)  # Read and consume header row
                     
                     # Filter header to only include selected columns
@@ -1064,7 +1057,7 @@ class FileSplitterApp:
                         # CSV to CSV/TXT/DAT
                         outfile = open(output_path, 'w', newline='', encoding='utf-8')
                         writer = csv.writer(outfile, delimiter=custom_delimiter)
-                        if include_header:  # Use config setting
+                        if include_header:  # NEW: Conditionally write header
                             writer.writerow(filtered_header)  # Write filtered header
                         current_size = outfile.tell()
                         current_rows = 0
@@ -1146,7 +1139,7 @@ class FileSplitterApp:
                                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                                 outfile = open(output_path, 'w', newline='', encoding='utf-8')
                                 writer = csv.writer(outfile, delimiter=custom_delimiter)
-                                if include_header:  # Use config setting for new files
+                                if include_header:  # NEW: Conditionally write header for new files
                                     writer.writerow(filtered_header)  # Write filtered header
                                 current_size = outfile.tell()
                                 current_rows = 0
@@ -1184,7 +1177,7 @@ class FileSplitterApp:
             self.update_progress(total_rows, total_rows, output_path, part_num)
 
             # Create log file for successful completion
-            if self.config_manager.get("enable_logging"):
+            if self.create_log.get():
                 self.write_completion_log(input_file, output_dir, file_extension, custom_delimiter,
                                         input_data_row_count, output_data_row_count, per_file_row_counts, part_num)
             
@@ -1198,7 +1191,7 @@ class FileSplitterApp:
     def write_cancellation_log(self, input_file, output_dir, file_extension, custom_delimiter, 
                               input_rows, output_rows, per_file_row_counts, cancel_phase, parts_created):
         """Write log entry for cancelled operations"""
-        if not self.config_manager.get("enable_logging"):
+        if not self.create_log.get():
             return
             
         log_path = os.path.join(output_dir, "log.txt")
@@ -1218,7 +1211,7 @@ class FileSplitterApp:
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
-                log_file.write(f"Header Row Included: {'Yes' if self.config_manager.get('retain_header') else 'No'}\n")
+                log_file.write(f"Header Row Included: {'Yes' if self.retain_header.get() else 'No'}\n")  # NEW
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
@@ -1260,7 +1253,7 @@ class FileSplitterApp:
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
-                log_file.write(f"Header Row Included: {'Yes' if self.config_manager.get('retain_header') else 'No'}\n")
+                log_file.write(f"Header Row Included: {'Yes' if self.retain_header.get() else 'No'}\n")  # NEW
             
             # Log column filtering information
             if len(self.selected_columns) < len(self.available_columns):
@@ -1303,7 +1296,7 @@ class FileSplitterApp:
         self.button_reset.config(state="normal")
         
         # Open directory if requested (no popup message)
-        if self.config_manager.get("open_dir_after_split"):
+        if self.open_dir_after_split.get():
             try:
                 os.startfile(directory)
             except AttributeError:
@@ -1353,13 +1346,13 @@ class FileSplitterApp:
         self.output_dir.set("")  # Clear output directory
         
         # Reset Split Settings
-        self.split_mode.set(self.config_manager.get("default_split_mode"))  # Reset to config default
+        self.split_mode.set("size")  # Reset to default split mode
         self.max_size.set("")  # Clear size value
         self.max_rows.set("")  # Clear rows value
-        self.file_type.set(self.config_manager.get("default_output_file_type"))  # Reset to config default
+        self.file_type.set(".csv")  # Reset to default file type
         self.use_custom_delim.set(False)  # Reset custom delimiter checkbox
         self.custom_delimiter.set("")  # Clear custom delimiter value
-        self.detected_delimiter.set("")  # Clear detected delimiter
+        self.retain_header.set(True)  # Reset to default (retain header)
         
         # Clear column data
         self.available_columns = []
@@ -1375,34 +1368,16 @@ class FileSplitterApp:
     def validate_delimiter(self, text):
         return len(text) <= 1 and (text == '' or text.isprintable())
 
-    def update_output_directory_state(self):
-        """Update the state of output directory field and browse button"""
-        # Enable if there's a source file selected OR if there's a directory specified
-        should_enable = bool(self.input_file.get()) or bool(self.output_dir.get().strip())
-        
-        if should_enable:
-            self.output_browse_button.config(state="normal")
-        else:
-            self.output_browse_button.config(state="disabled")
-
-    def on_output_dir_change(self, *args):
-        """Handle output directory changes"""
-        self.update_output_directory_state()
-
     def on_input_file_change(self, *args):
         if not self.input_file.get():
-            # Disable column select button when no file selected
+            # Disable buttons when no file selected
+            self.output_browse_button.config(state="disabled")
             self.column_select_button.config(state="disabled")
-            
-            # Clear output directory only if no custom directory is set
-            if not (self.config_manager.get("use_default_output_dir") and 
-                    self.config_manager.get("default_output_dir")):
-                self.output_dir.set("")  # This will trigger on_output_dir_change
+            self.retain_header_checkbox.state(["disabled"])  # NEW: Disable when no file
+            self.output_dir.set("")  # Clear output directory
             
             self.delim_checkbox.state(["disabled"])
             self.use_custom_delim.set(False)
-            self.custom_delimiter.set("")  # Clear delimiter when no file
-            self.detected_delimiter.set("")  # Clear detected delimiter when no file
             self.toggle_delim_fields()
             # Clear stats when no file selected
             self.total_rows.set("")
@@ -1416,15 +1391,18 @@ class FileSplitterApp:
             self.selected_columns = []
         else:
             # Enable buttons when file is selected
+            self.output_browse_button.config(state="normal")
             self.column_select_button.config(state="normal")
             
-            # Enable delimiter options based on OUTPUT format
+            # Enable delimiter and header options based on OUTPUT format
             if self.file_type.get() != ".json":
                 # Output format uses delimiters - enable delimiter options regardless of input format
                 self.delim_checkbox.state(["!disabled"])
+                self.retain_header_checkbox.state(["!disabled"])
             else:
-                # Output is JSON - disable delimiter options
+                # Output is JSON - disable delimiter and header options
                 self.delim_checkbox.state(["disabled"])
+                self.retain_header_checkbox.state(["disabled"])
                     
             # Clear previous stats when new file selected
             self.total_rows.set("")
@@ -1432,9 +1410,6 @@ class FileSplitterApp:
             self.rows_processed.set("")
             self.file_count.set("")
             self.output_file_type.set("")
-        
-        # Update output directory button state
-        self.update_output_directory_state()
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -130,7 +130,7 @@ class SettingsWindow:
         # Create window
         self.window = tk.Toplevel(parent)
         self.window.title("Settings")
-        self.window.geometry("375x330")
+        self.window.geometry("375x285")
         self.window.resizable(False, False)
         self.window.transient(parent)
         self.window.grab_set()
@@ -138,8 +138,8 @@ class SettingsWindow:
         # Center the window
         self.window.update_idletasks()
         x = (self.window.winfo_screenwidth() // 2) - (375 // 2)
-        y = (self.window.winfo_screenheight() // 2) - (330 // 2)
-        self.window.geometry(f"375x330+{x}+{y}")
+        y = (self.window.winfo_screenheight() // 2) - (285 // 2)
+        self.window.geometry(f"375x285+{x}+{y}")
         
         # Initialize variables with current settings
         self.open_dir_after_split = tk.BooleanVar(value=self.config_manager.get("open_dir_after_split"))
@@ -157,14 +157,9 @@ class SettingsWindow:
         self.window.columnconfigure(0, weight=1)
         self.window.rowconfigure(0, weight=1)
         
-        # Title
-        title_label = ttk.Label(main_frame, text="Application Settings", 
-                               font=("Segoe UI", 12, "bold"))
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky="w")
-        
         # Create notebook for tabs
         notebook = ttk.Notebook(main_frame)
-        notebook.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 20))
+        notebook.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 20))
         
         # General Tab
         general_frame = ttk.Frame(notebook, padding=15)
@@ -220,12 +215,12 @@ class SettingsWindow:
         
         # Configure grid weights
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(1, weight=1)  # Make notebook expand to fill space
+        main_frame.rowconfigure(0, weight=1)  # Make notebook expand to fill space
         general_frame.columnconfigure(0, weight=1)
         
         # Bottom buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(20, 0))
+        button_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(20, 0))
         
         ttk.Button(button_frame, text="Save", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
         ttk.Button(button_frame, text="Cancel", command=self.cancel_clicked).grid(row=0, column=1, padx=(0, 10))

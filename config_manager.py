@@ -2,7 +2,7 @@ import os
 import json
 import platform
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 
 class ConfigManager:
     def __init__(self):
@@ -11,7 +11,9 @@ class ConfigManager:
             "open_dir_after_split": False,
             "enable_logging": True,
             "default_output_file_type": ".csv",
-            "retain_header": True
+            "retain_header": True,
+            "use_default_output_dir": False,
+            "default_output_dir": ""
         }
         self.settings = self.load_settings()
     
@@ -128,22 +130,24 @@ class SettingsWindow:
         # Create window
         self.window = tk.Toplevel(parent)
         self.window.title("Settings")
-        self.window.geometry("340x280")
+        self.window.geometry("375x330")
         self.window.resizable(False, False)
         self.window.transient(parent)
         self.window.grab_set()
         
         # Center the window
         self.window.update_idletasks()
-        x = (self.window.winfo_screenwidth() // 2) - (380 // 2)
-        y = (self.window.winfo_screenheight() // 2) - (350 // 2)
-        self.window.geometry(f"340x280+{x}+{y}")
+        x = (self.window.winfo_screenwidth() // 2) - (375 // 2)
+        y = (self.window.winfo_screenheight() // 2) - (330 // 2)
+        self.window.geometry(f"375x330+{x}+{y}")
         
         # Initialize variables with current settings
         self.open_dir_after_split = tk.BooleanVar(value=self.config_manager.get("open_dir_after_split"))
         self.enable_logging = tk.BooleanVar(value=self.config_manager.get("enable_logging"))
         self.default_output_file_type = tk.StringVar(value=self.config_manager.get("default_output_file_type"))
         self.retain_header = tk.BooleanVar(value=self.config_manager.get("retain_header"))
+        self.use_default_output_dir = tk.BooleanVar(value=self.config_manager.get("use_default_output_dir"))
+        self.default_output_dir = tk.StringVar(value=self.config_manager.get("default_output_dir"))
         
         self.create_widgets()
         
@@ -163,15 +167,34 @@ class SettingsWindow:
         notebook.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 20))
         
         # General Tab
-        general_frame = ttk.Frame(notebook, padding=20)
+        general_frame = ttk.Frame(notebook, padding=15)
         notebook.add(general_frame, text="General")
         
-        # Open Output Directory
-        ttk.Checkbutton(general_frame, text="Open Output Directory", 
-                       variable=self.open_dir_after_split).grid(row=0, column=0, sticky="w", pady=(0, 15))
+        # Default Output Directory section
+        ttk.Checkbutton(general_frame, text="Custom Output Directory:", 
+                       variable=self.use_default_output_dir,
+                       command=self.toggle_output_dir_entry).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+        
+        # Directory path input
+        dir_frame = ttk.Frame(general_frame)
+        dir_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 20))
+        dir_frame.columnconfigure(0, weight=1)
+        
+        self.output_dir_entry = ttk.Entry(dir_frame, textvariable=self.default_output_dir, width=40)
+        self.output_dir_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        
+        self.browse_button = ttk.Button(dir_frame, text="Browse", command=self.browse_output_dir)
+        self.browse_button.grid(row=0, column=1)
+        
+        # Initialize the state of the directory controls
+        self.toggle_output_dir_entry()
+        
+        # Open After Split
+        ttk.Checkbutton(general_frame, text="Open After Split", 
+                       variable=self.open_dir_after_split).grid(row=2, column=0, columnspan=3, sticky="w", pady=(0, 15))
         
         # Split Tab
-        split_frame = ttk.Frame(notebook, padding=20)
+        split_frame = ttk.Frame(notebook, padding=15)
         notebook.add(split_frame, text="Split")
         
         # Retain Header Row
@@ -188,7 +211,7 @@ class SettingsWindow:
         file_type_combo.pack(side="left", padx=(10, 0))
         
         # Logging Tab
-        logging_frame = ttk.Frame(notebook, padding=20)
+        logging_frame = ttk.Frame(notebook, padding=15)
         notebook.add(logging_frame, text="Logging")
         
         # Enable Logging
@@ -197,14 +220,31 @@ class SettingsWindow:
         
         # Configure grid weights
         main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)  # Make notebook expand to fill space
+        general_frame.columnconfigure(0, weight=1)
         
         # Bottom buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
+        button_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(20, 0))
         
         ttk.Button(button_frame, text="Save", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
         ttk.Button(button_frame, text="Cancel", command=self.cancel_clicked).grid(row=0, column=1, padx=(0, 10))
         ttk.Button(button_frame, text="Reset to Defaults", command=self.reset_defaults, width=18).grid(row=0, column=2)
+        
+    def toggle_output_dir_entry(self):
+        """Enable/disable the output directory entry based on checkbox state"""
+        if self.use_default_output_dir.get():
+            self.output_dir_entry.config(state="normal")
+            self.browse_button.config(state="normal")
+        else:
+            self.output_dir_entry.config(state="disabled")
+            self.browse_button.config(state="disabled")
+    
+    def browse_output_dir(self):
+        """Browse for output directory"""
+        directory = filedialog.askdirectory(title="Select Default Output Directory")
+        if directory:
+            self.default_output_dir.set(directory)
         
     def reset_defaults(self):
         """Reset all settings to defaults"""
@@ -212,14 +252,35 @@ class SettingsWindow:
         self.enable_logging.set(self.config_manager.default_settings["enable_logging"])
         self.default_output_file_type.set(self.config_manager.default_settings["default_output_file_type"])
         self.retain_header.set(self.config_manager.default_settings["retain_header"])
+        self.use_default_output_dir.set(self.config_manager.default_settings["use_default_output_dir"])
+        self.default_output_dir.set(self.config_manager.default_settings["default_output_dir"])
+        self.toggle_output_dir_entry()
         
     def ok_clicked(self):
         """User clicked OK - update settings and attempt to save"""
+        # Validate default output directory if enabled
+        if self.use_default_output_dir.get() and self.default_output_dir.get():
+            if not os.path.exists(self.default_output_dir.get()):
+                response = messagebox.askyesno(
+                    "Directory Not Found",
+                    f"The specified default output directory does not exist:\n\n{self.default_output_dir.get()}\n\nWould you like to create it?"
+                )
+                if response:
+                    try:
+                        os.makedirs(self.default_output_dir.get(), exist_ok=True)
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Could not create directory:\n{e}")
+                        return
+                else:
+                    return
+        
         # Update config manager with new values
         self.config_manager.set("open_dir_after_split", self.open_dir_after_split.get())
         self.config_manager.set("enable_logging", self.enable_logging.get())
         self.config_manager.set("default_output_file_type", self.default_output_file_type.get())
         self.config_manager.set("retain_header", self.retain_header.get())
+        self.config_manager.set("use_default_output_dir", self.use_default_output_dir.get())
+        self.config_manager.set("default_output_dir", self.default_output_dir.get())
         
         # Attempt to save to file
         save_success = self.config_manager.save_settings()

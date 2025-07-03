@@ -190,6 +190,12 @@ class FileSplitterApp:
         self.custom_delimiter = tk.StringVar(value="")
         self.detected_delimiter = tk.StringVar(value="")
 
+        # Initialize output directory from saved settings
+        if (self.config_manager.get("use_default_output_dir") and 
+            self.config_manager.get("default_output_dir") and 
+            os.path.exists(self.config_manager.get("default_output_dir"))):
+            self.output_dir.set(self.config_manager.get("default_output_dir").replace('\\', '/'))
+
         # Column selection variables
         self.available_columns = []
         self.selected_columns = []
@@ -216,6 +222,10 @@ class FileSplitterApp:
         self.create_widgets()
         self.input_file.trace_add("write", self.on_input_file_change)
         self.file_type.trace_add("write", self.on_file_type_change)
+        self.output_dir.trace_add("write", self.on_output_dir_change)
+        
+        # Set initial state of output directory controls
+        self.update_output_directory_state()
         
         # Set up keyboard shortcuts
         self.setup_keyboard_shortcuts()
@@ -286,12 +296,20 @@ class FileSplitterApp:
         settings_window = self.config_manager.open_settings_window(self.root)
         self.root.wait_window(settings_window.window)
         
-        # If settings were changed, update the file type if it's the default
+        # If settings were changed, update relevant fields
         if settings_window.result:
             # Update file type to new default if user hasn't manually changed it
             current_default = self.config_manager.get("default_output_file_type")
             if not self.input_file.get():  # Only change if no file is loaded
                 self.file_type.set(current_default)
+            
+            # Update output directory if custom directory is set
+            if (self.config_manager.get("use_default_output_dir") and 
+                self.config_manager.get("default_output_dir") and 
+                os.path.exists(self.config_manager.get("default_output_dir"))):
+                self.output_dir.set(self.config_manager.get("default_output_dir").replace('\\', '/'))
+            elif not self.input_file.get():  # Clear output directory if no custom dir and no file selected
+                self.output_dir.set("")
 
     def open_help(self):
         webbrowser.open("https://github.com/jackworthen/file-splitter")
@@ -480,7 +498,14 @@ class FileSplitterApp:
                 )
                 return
             
-            default_out = os.path.join(os.path.dirname(path), 'split_files')
+            # Check if user has enabled default output directory
+            if (self.config_manager.get("use_default_output_dir") and 
+                self.config_manager.get("default_output_dir") and 
+                os.path.exists(self.config_manager.get("default_output_dir"))):
+                default_out = self.config_manager.get("default_output_dir")
+            else:
+                default_out = os.path.join(os.path.dirname(path), 'split_files')
+            
             self.output_dir.set(default_out.replace('\\', '/'))
             self.input_file.set(path)
             self.delim_checkbox.state(["!disabled"])
@@ -1341,12 +1366,29 @@ class FileSplitterApp:
     def validate_delimiter(self, text):
         return len(text) <= 1 and (text == '' or text.isprintable())
 
+    def update_output_directory_state(self):
+        """Update the state of output directory field and browse button"""
+        # Enable if there's a source file selected OR if there's a directory specified
+        should_enable = bool(self.input_file.get()) or bool(self.output_dir.get().strip())
+        
+        if should_enable:
+            self.output_browse_button.config(state="normal")
+        else:
+            self.output_browse_button.config(state="disabled")
+
+    def on_output_dir_change(self, *args):
+        """Handle output directory changes"""
+        self.update_output_directory_state()
+
     def on_input_file_change(self, *args):
         if not self.input_file.get():
-            # Disable buttons when no file selected
-            self.output_browse_button.config(state="disabled")
+            # Disable column select button when no file selected
             self.column_select_button.config(state="disabled")
-            self.output_dir.set("")  # Clear output directory
+            
+            # Clear output directory only if no custom directory is set
+            if not (self.config_manager.get("use_default_output_dir") and 
+                    self.config_manager.get("default_output_dir")):
+                self.output_dir.set("")  # This will trigger on_output_dir_change
             
             self.delim_checkbox.state(["disabled"])
             self.use_custom_delim.set(False)
@@ -1365,7 +1407,6 @@ class FileSplitterApp:
             self.selected_columns = []
         else:
             # Enable buttons when file is selected
-            self.output_browse_button.config(state="normal")
             self.column_select_button.config(state="normal")
             
             # Enable delimiter options based on OUTPUT format
@@ -1382,6 +1423,9 @@ class FileSplitterApp:
             self.rows_processed.set("")
             self.file_count.set("")
             self.output_file_type.set("")
+        
+        # Update output directory button state
+        self.update_output_directory_state()
 
 if __name__ == "__main__":
     root = tk.Tk()

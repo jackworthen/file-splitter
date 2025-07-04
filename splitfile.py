@@ -301,7 +301,7 @@ class FileSplitterApp:
         self.output_browse_button.grid(row=0, column=1, pady=5)
         
         ttk.Checkbutton(output_frame, text="Open Directory After Split", variable=self.open_dir_after_split).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
-        ttk.Checkbutton(output_frame, text="Enable Logging", variable=self.create_log).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
+        ttk.Checkbutton(output_frame, text="Enable Validation Log", variable=self.create_log).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
         output_frame.columnconfigure(0, weight=1)
 
         # Split Settings Section

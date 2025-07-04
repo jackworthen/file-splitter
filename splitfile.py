@@ -215,7 +215,6 @@ class FileSplitterApp:
         self.create_widgets()
         self.input_file.trace_add("write", self.on_input_file_change)
         self.file_type.trace_add("write", self.on_file_type_change)
-        self.detected_delimiter.trace_add("write", self.on_delimiter_change)
         
         # Set up keyboard shortcuts
         self.setup_keyboard_shortcuts()
@@ -308,14 +307,16 @@ class FileSplitterApp:
         settings_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
         # Column Selection Button and Header Retention Checkbox - row 0
-        self.column_select_button = ttk.Button(settings_frame, text="Select Columns...", 
-                                             command=self.open_column_selection, state="disabled")
-        self.column_select_button.grid(row=0, column=0, pady=(0, 10), sticky="w")
+        button_header_frame = ttk.Frame(settings_frame)
+        button_header_frame.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="w")
         
-        # NEW: Retain Header Row checkbox - moved closer to the button
-        self.retain_header_checkbox = ttk.Checkbutton(settings_frame, text="Retain Header", 
+        self.column_select_button = ttk.Button(button_header_frame, text="Select Columns...", 
+                                             command=self.open_column_selection, state="disabled")
+        self.column_select_button.pack(side="left")
+        
+        self.retain_header_checkbox = ttk.Checkbutton(button_header_frame, text="Retain Header", 
                                                      variable=self.retain_header, state="disabled")
-        self.retain_header_checkbox.grid(row=0, column=1, pady=(0, 10), sticky="w", padx=(10, 0))
+        self.retain_header_checkbox.pack(side="left", padx=(10, 0))
         
         # Split mode selection - moved to row 1 - using sub-frames for tighter control
         split_mode_frame = ttk.Frame(settings_frame)
@@ -332,33 +333,29 @@ class FileSplitterApp:
         self.row_entry.pack(side="left", padx=(5, 0))
         
         # File type selection - moved to row 2
-        ttk.Label(settings_frame, text="Output file type:").grid(row=2, column=0, pady=(10, 0), sticky="w")
-        ttk.Combobox(settings_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).grid(row=2, column=1, pady=(10, 0), sticky="w")
+        file_type_frame = ttk.Frame(settings_frame)
+        file_type_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w")
+        
+        ttk.Label(file_type_frame, text="Output file type:").pack(side="left")
+        ttk.Combobox(file_type_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).pack(side="left", padx=(10, 0))
 
         # Delimiter settings - moved to row 3
-        self.delim_checkbox = ttk.Checkbutton(settings_frame, text="Custom Delimiter", 
+        delimiter_frame = ttk.Frame(settings_frame)
+        delimiter_frame.grid(row=3, column=0, columnspan=2, pady=(10, 0), sticky="w")
+        
+        self.delim_checkbox = ttk.Checkbutton(delimiter_frame, text="Custom Delimiter", 
                                             variable=self.use_custom_delim, command=self.toggle_delim_fields)
         self.delim_checkbox.state(["disabled"])
-        self.delim_checkbox.grid(row=3, column=0, pady=(10, 0), sticky="w")
+        self.delim_checkbox.pack(side="left")
 
-        self.set_delim_entry = ttk.Entry(settings_frame, textvariable=self.custom_delimiter, width=5, state="disabled", justify="center")
-        self.set_delim_entry.config(validate="key", 
-                                  validatecommand=(self.root.register(self.validate_delimiter), "%P"))
-        self.set_delim_entry.grid(row=3, column=1, pady=(10, 0), sticky="w", padx=(10, 0))
-
-        # Move Current Delimiter label and display to the right of the input box
-        # Use fixed width to prevent layout shifts
-        self.delim_label = ttk.Label(settings_frame, text="Current Delimiter:", width=16)
-        self.delim_display = ttk.Label(settings_frame, textvariable=self.detected_delimiter, width=5)
-
-        self.delim_label.grid(row=3, column=2, sticky="w", padx=(15, 5), pady=(10, 0))
-        self.delim_display.grid(row=3, column=3, sticky="w", pady=(10, 0))
+        self.delimiter_combo = ttk.Combobox(delimiter_frame, textvariable=self.custom_delimiter, 
+                                          width=15, state="disabled")
+        self.delimiter_combo['values'] = ('comma (,)', 'asterisk (*)', 'semicolon (;)', 'pipe (|)')
+        self.delimiter_combo.pack(side="left", padx=(10, 0))
         
         # Configure column weights to maintain stable layout
         settings_frame.columnconfigure(0, weight=1)
         settings_frame.columnconfigure(1, weight=0)
-        settings_frame.columnconfigure(2, weight=0)
-        settings_frame.columnconfigure(3, weight=0)
 
         # Stats Section
         stats_frame_outer = ttk.LabelFrame(main_frame, text="Statistics", padding=10, style="Bold.TLabelframe")
@@ -654,47 +651,45 @@ class FileSplitterApp:
                 self.retain_header_checkbox.state(["!disabled"])
             # If no file selected, keep everything disabled
 
-    def on_delimiter_change(self, *args):
-        """Handle changes to detected delimiter"""
-        # The delimiter display is bound to the StringVar, so it updates automatically
-        # We just need to ensure color is correct if currently visible
-        if self.use_custom_delim.get() and self.input_file.get() and self.file_type.get() != ".json":
-            normal_color = self.root.tk.eval("ttk::style lookup TLabel -foreground") or "black"
-            self.delim_display.config(foreground=normal_color)
+    def get_delimiter_symbol(self, delimiter_text):
+        """Extract the actual delimiter symbol from descriptive text"""
+        if not delimiter_text:
+            return ','
+        
+        # Extract symbol from parentheses
+        if '(' in delimiter_text and ')' in delimiter_text:
+            start = delimiter_text.find('(') + 1
+            end = delimiter_text.find(')')
+            return delimiter_text[start:end]
+        
+        # Fallback - if it's just a symbol already
+        return delimiter_text
 
     def toggle_delim_fields(self):
-        # Delimiter fields are only relevant when OUTPUT format uses delimiters (CSV, TXT, DAT)
-        # They are NOT relevant when output format is JSON, regardless of input format
-        show_current_delim = (self.use_custom_delim.get() and 
-                             self.input_file.get() and 
-                             self.file_type.get() != ".json")  # Only check output format
-        
-        # Show/hide by matching background color or using normal text color
-        if show_current_delim:
-            # Use normal text color when visible
-            normal_color = self.root.tk.eval("ttk::style lookup TLabel -foreground") or "black"
-            self.delim_label.config(foreground=normal_color)
-            self.delim_display.config(foreground=normal_color)
-        else:
-            # Match background color to make invisible
-            try:
-                bg_color = self.root.tk.eval("ttk::style lookup TLabel -background")
-                if not bg_color:
-                    bg_color = self.root.tk.eval("ttk::style lookup TLabelframe -background")
-                if not bg_color:
-                    bg_color = self.root.cget("bg")
-            except:
-                bg_color = "SystemButtonFace"  # Windows fallback
-            self.delim_label.config(foreground=bg_color)
-            self.delim_display.config(foreground=bg_color)
-        
-        # Enable/disable the delimiter entry - only relevant for delimited output formats
+        """Enable/disable the delimiter combobox and auto-select detected delimiter"""
+        # Enable/disable the delimiter combobox - only relevant for delimited output formats
         if (self.use_custom_delim.get() and 
             self.input_file.get() and 
             self.file_type.get() != ".json"):  # Only check output format
-            self.set_delim_entry.config(state="normal")
+            self.delimiter_combo.config(state="readonly")
+            # Auto-select the detected delimiter if it's in our predefined list
+            detected = self.detected_delimiter.get()
+            
+            # Map detected symbol to descriptive text
+            delimiter_map = {
+                ',': 'comma (,)',
+                '*': 'asterisk (*)',
+                ';': 'semicolon (;)',
+                '|': 'pipe (|)'
+            }
+            
+            if detected in delimiter_map:
+                self.custom_delimiter.set(delimiter_map[detected])
+            else:
+                # Default to comma if detected delimiter is not in our list
+                self.custom_delimiter.set('comma (,)')
         else:
-            self.set_delim_entry.config(state="disabled")
+            self.delimiter_combo.config(state="disabled")
 
     def start_threaded_split(self):
         file_path = self.input_file.get()
@@ -757,7 +752,7 @@ class FileSplitterApp:
         # Show percentage label
         self.progress_label.grid()
 
-        delim = self.custom_delimiter.get() if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
+        delim = self.get_delimiter_symbol(self.custom_delimiter.get()) if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
         thread = threading.Thread(target=self.split_file, 
                                 args=(file_path, out_dir, mode, value, extension, delim))
         thread.daemon = True
@@ -1364,9 +1359,6 @@ class FileSplitterApp:
         
         # Disable Reset button again
         self.button_reset.config(state="disabled")
-
-    def validate_delimiter(self, text):
-        return len(text) <= 1 and (text == '' or text.isprintable())
 
     def on_input_file_change(self, *args):
         if not self.input_file.get():

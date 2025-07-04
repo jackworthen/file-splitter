@@ -313,7 +313,7 @@ class FileSplitterApp:
         self.column_select_button.grid(row=0, column=0, pady=(0, 10), sticky="w")
         
         # NEW: Retain Header Row checkbox - moved closer to the button
-        self.retain_header_checkbox = ttk.Checkbutton(settings_frame, text="Retain Header Row", 
+        self.retain_header_checkbox = ttk.Checkbutton(settings_frame, text="Retain Header", 
                                                      variable=self.retain_header, state="disabled")
         self.retain_header_checkbox.grid(row=0, column=1, pady=(0, 10), sticky="w", padx=(10, 0))
         

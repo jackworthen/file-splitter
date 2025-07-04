@@ -184,6 +184,7 @@ class FileSplitterApp:
         self.use_custom_delim = tk.BooleanVar(value=False)
         self.custom_delimiter = tk.StringVar(value="")
         self.detected_delimiter = tk.StringVar(value="")
+        self.quote_mode = tk.StringVar(value="Standard")  # New: Quote mode selection
         self.open_dir_after_split = tk.BooleanVar(value=False)
         self.create_log = tk.BooleanVar(value=True)
         self.retain_header = tk.BooleanVar(value=True)  # NEW: Default to retaining header
@@ -337,7 +338,7 @@ class FileSplitterApp:
         file_type_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w")
         
         ttk.Label(file_type_frame, text="Output file type:").pack(side="left")
-        ttk.Combobox(file_type_frame, textvariable=self.file_type, values=[".csv", ".tsv", ".txt", ".dat", ".json"], width=10).pack(side="left", padx=(10, 0))
+        ttk.Combobox(file_type_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).pack(side="left", padx=(10, 0))
 
         # Delimiter settings - moved to row 3
         delimiter_frame = ttk.Frame(settings_frame)
@@ -352,6 +353,19 @@ class FileSplitterApp:
                                           width=15, state="disabled")
         self.delimiter_combo['values'] = ('comma (,)', 'tab (\\t)', 'semicolon (;)', 'pipe (|)', 'asterisk (*)')
         self.delimiter_combo.pack(side="left", padx=(10, 0))
+        
+        # Quote mode settings - row 4
+        quote_frame = ttk.Frame(settings_frame)
+        quote_frame.grid(row=4, column=0, columnspan=2, pady=(10, 0), sticky="w")
+        
+        ttk.Label(quote_frame, text="Quoted Identifier Mode:").pack(side="left")
+        
+        self.quote_combo = ttk.Combobox(quote_frame, textvariable=self.quote_mode, 
+                                      values=["Standard", 
+                                             "All fields", 
+                                             "Never quote"], 
+                                      width=25, state="disabled")
+        self.quote_combo.pack(side="left", padx=(10, 0))
         
         # Configure column weights to maintain stable layout
         settings_frame.columnconfigure(0, weight=1)
@@ -650,6 +664,9 @@ class FileSplitterApp:
                 self.delim_checkbox.state(["!disabled"])
                 self.retain_header_checkbox.state(["!disabled"])
             # If no file selected, keep everything disabled
+        
+        # Update quote mode state whenever file type changes
+        self.update_quote_mode_state()
 
     def highlight_field_error(self, field_widget):
         """Highlight a field with light red background to indicate error"""
@@ -668,6 +685,16 @@ class FileSplitterApp:
                     self.clear_field_error(self.split_value_entry)
             except ValueError:
                 pass  # Keep highlighting if still invalid
+
+    def get_quote_mode(self):
+        """Convert descriptive quote mode to csv module constant"""
+        import csv
+        mode_map = {
+            "Standard": csv.QUOTE_MINIMAL,
+            "All fields": csv.QUOTE_ALL,
+            "Never quote": csv.QUOTE_NONE
+        }
+        return mode_map.get(self.quote_mode.get(), csv.QUOTE_MINIMAL)
 
     def get_delimiter_symbol(self, delimiter_text):
         """Extract the actual delimiter symbol from descriptive text"""
@@ -713,6 +740,13 @@ class FileSplitterApp:
                 self.custom_delimiter.set('comma (,)')
         else:
             self.delimiter_combo.config(state="disabled")
+    
+    def update_quote_mode_state(self):
+        """Enable/disable quote mode dropdown based on file selection and output format"""
+        if (self.input_file.get() and self.file_type.get() != ".json"):
+            self.quote_combo.config(state="readonly")
+        else:
+            self.quote_combo.config(state="disabled")
 
     def start_threaded_split(self):
         file_path = self.input_file.get()
@@ -780,8 +814,9 @@ class FileSplitterApp:
         self.progress_label.grid()
 
         delim = self.get_delimiter_symbol(self.custom_delimiter.get()) if self.use_custom_delim.get() else self.detected_delimiter.get() or ','
+        quote_mode = self.get_quote_mode()  # Get the selected quote mode
         thread = threading.Thread(target=self.split_file, 
-                                args=(file_path, out_dir, mode, value, extension, delim))
+                                args=(file_path, out_dir, mode, value, extension, delim, quote_mode))
         thread.daemon = True
         thread.start()
 
@@ -803,7 +838,7 @@ class FileSplitterApp:
             self.root.after(0, lambda: self.rows_processed.set(f"{current_row:,}"))
             self.root.after(0, lambda: self.file_count.set(str(part_num)))
 
-    def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension, custom_delimiter):
+    def split_file(self, input_file, output_dir, mode, size_or_rows, file_extension, custom_delimiter, quote_mode):
         cancelled = False
         analysis_rows_counted = 0
         part_num = 1
@@ -933,7 +968,7 @@ class FileSplitterApp:
                 else:
                     # JSON to CSV/TXT/DAT conversion
                     outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                    writer = csv.writer(outfile, delimiter=custom_delimiter)
+                    writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                     if include_header:
                         writer.writerow(filtered_header)
                     current_size = outfile.tell()
@@ -1021,7 +1056,7 @@ class FileSplitterApp:
                             part_num += 1
                             output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                             outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                            writer = csv.writer(outfile, delimiter=custom_delimiter)
+                            writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                             if include_header:
                                 writer.writerow(filtered_header)
                             current_size = outfile.tell()
@@ -1078,7 +1113,7 @@ class FileSplitterApp:
                     else:
                         # CSV to CSV/TXT/DAT
                         outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                        writer = csv.writer(outfile, delimiter=custom_delimiter)
+                        writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                         if include_header:  # NEW: Conditionally write header
                             writer.writerow(filtered_header)  # Write filtered header
                         current_size = outfile.tell()
@@ -1160,7 +1195,7 @@ class FileSplitterApp:
                                 part_num += 1
                                 output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
                                 outfile = open(output_path, 'w', newline='', encoding='utf-8')
-                                writer = csv.writer(outfile, delimiter=custom_delimiter)
+                                writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                                 if include_header:  # NEW: Conditionally write header for new files
                                     writer.writerow(filtered_header)  # Write filtered header
                                 current_size = outfile.tell()
@@ -1233,6 +1268,7 @@ class FileSplitterApp:
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
+                log_file.write(f"Quote Mode: {self.quote_mode.get()}\n")
                 log_file.write(f"Header Row Included: {'Yes' if self.retain_header.get() else 'No'}\n")  # NEW
             
             # Log column filtering information
@@ -1275,6 +1311,7 @@ class FileSplitterApp:
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
+                log_file.write(f"Quote Mode: {self.quote_mode.get()}\n")
                 log_file.write(f"Header Row Included: {'Yes' if self.retain_header.get() else 'No'}\n")  # NEW
             
             # Log column filtering information
@@ -1373,6 +1410,7 @@ class FileSplitterApp:
         self.file_type.set(".csv")  # Reset to default file type
         self.use_custom_delim.set(False)  # Reset custom delimiter checkbox
         self.custom_delimiter.set("")  # Clear custom delimiter value
+        self.quote_mode.set("Standard")  # Reset quote mode
         self.retain_header.set(True)  # Reset to default (retain header)
         
         # Clear error highlighting
@@ -1411,6 +1449,9 @@ class FileSplitterApp:
             # Clear column data
             self.available_columns = []
             self.selected_columns = []
+            
+            # Update quote mode state when no file is selected
+            self.update_quote_mode_state()
         else:
             # Clear error highlighting when a file is selected
             self.clear_field_error(self.input_file_entry)
@@ -1436,6 +1477,9 @@ class FileSplitterApp:
             self.rows_processed.set("")
             self.file_count.set("")
             self.output_file_type.set("")
+            
+            # Update quote mode state when file is selected
+            self.update_quote_mode_state()
 
 if __name__ == "__main__":
     root = tk.Tk()

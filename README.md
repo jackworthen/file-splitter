@@ -137,32 +137,6 @@ Click **Run** and watch the real-time progress! ✨
 
 ---
 
-## 🏗️ Technical Details
-
-### Architecture
-- **🧵 Multi-threaded**: File operations run in background threads
-- **🔍 Smart Detection**: CSV sniffer for automatic delimiter detection
-- **💾 Memory Efficient**: Processes files line-by-line for large datasets
-- **📊 Real-time Validation**: Automatic row count verification
-- **🛑 Graceful Cancellation**: Handles interruptions with partial file preservation
-
-### File Handling
-- **🔒 Safe Processing**: Preserves original files
-- **📋 Header Preservation**: Maintains headers in all split files (CSV/TXT/DAT)
-- **🎛️ Column Filtering**: Efficient column selection and filtering during processing
-- **🎯 Precise Splitting**: Accurate size and row count splitting
-- **📝 UTF-8 Support**: Full Unicode character support
-- **⚡ Smart JSON Processing**: Memory-efficient JSON array handling with size estimation and nested object flattening
-
-### Enhanced Statistics 
-
-### JSON Processing Features
-- **🔄 Nested Object Flattening**: Automatically flattens nested JSON objects using dot notation
-- **📋 Smart Key Detection**: Intelligently discovers all possible keys across JSON objects
-- **🎯 Order Preservation**: Maintains key order from the original JSON structure
-- **⚡ Memory Efficient**: Processes large JSON arrays without loading everything into memory
-- **🔄 Format Conversion**: Convert JSON to CSV/TXT/DAT or split JSON to smaller JSON files
-
 ### Keyboard Shortcuts
 - **Ctrl+Q**: Quick exit
 - **Ctrl+D**: Open documentation/help

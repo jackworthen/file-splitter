@@ -154,29 +154,7 @@ Click **Run** and watch the real-time progress! ✨
 - **📝 UTF-8 Support**: Full Unicode character support
 - **⚡ Smart JSON Processing**: Memory-efficient JSON array handling with size estimation and nested object flattening
 
-### Enhanced Statistics Dashboard
-- **📊 Total Rows**: Shows complete file analysis
-- **🔄 Rows Processed**: Real-time processing counter
-- **📁 Current File**: Active output file being written
-- **📝 File Count**: Number of split files created
-- **🎯 Output Type**: Selected output format
-- **📈 Progress Percentage**: Visual completion indicator
-
-### Column Selection Features
-- **🎛️ Interactive Selection**: Modal dialog with intuitive two-panel design
-- **🔄 Flexible Movement**: Move columns individually or in bulk
-- **📋 Order Preservation**: Selected columns maintain their original order
-- **✅ Validation**: Prevents selection of zero columns
-- **💾 Memory Efficient**: Column filtering during processing, not post-processing
-
-### Enhanced Logging Features
-- **⏰ Timestamps**: Every operation is timestamped
-- **📊 Detailed Statistics**: Input/output file sizes and row counts
-- **🎛️ Column Selection Details**: Lists included and excluded columns
-- **✅ Validation Results**: Automatic verification of split accuracy
-- **📁 Part Details**: Size and row count for each generated file
-- **🛑 Cancellation Logs**: Records partial operations when cancelled
-- **🔍 Error Tracking**: Comprehensive error logging and reporting
+### Enhanced Statistics 
 
 ### JSON Processing Features
 - **🔄 Nested Object Flattening**: Automatically flattens nested JSON objects using dot notation

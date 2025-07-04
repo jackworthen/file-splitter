@@ -17,19 +17,20 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **🎛️ Column Selection**: Choose which columns to include or exclude from split files
 - **✅ Row Count Validation**: Automatic verification that input and output row counts match
 - **🛑 Cancellation Support**: Stop operations mid-process with partial file preservation
+- **📋 Header Row Control**: Option to include or exclude header rows in split files
+- **🎯 Quoted Identifier Mode**: Control how fields are quoted in CSV output
 
 ### 🎨 **User Experience**
 - **🖥️ Beautiful GUI**: Clean, modern interface built with tkinter
 - **📂 Easy File Selection**: Drag, drop, or browse for files
 - **📁 Custom Output Directory**: Choose where your split files go
 - **🎛️ Interactive Column Selector**: Intuitive two-panel interface for column management
-- **🎛️ Settings Window**: Centralized configuration management with persistent settings
-- **📋 Menu System**: File and Edit menus with keyboard shortcuts
+- **📋 Menu System**: File and Help menus with keyboard shortcuts
 - **🚀 Threaded Processing**: Non-blocking UI during file operations
 - **📊 Real-time Statistics**: Live dashboard showing progress, file count, and processing stats
 - **🎯 Progress Tracking**: Visual progress bar with percentage completion
-- **🔄 Reset Functionality**: Clear all statistics and Split Settings to start fresh with existing source file
-- **⌨️ Enhanced Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help, Ctrl+S for settings
+- **🔄 Reset Functionality**: Clear all statistics and Split Settings to start fresh
+- **⌨️ Enhanced Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help
 - **🎨 Visual Feedback**: Color-coded progress indicators for success/failure
 - **📋 Enhanced Logging**: Comprehensive logs with file details, column selection, and validation results
 
@@ -37,7 +38,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **📄 CSV Files** (`.csv`) - with intelligent delimiter handling
 - **📝 Text Files** (`.txt`) - preserving original formatting
 - **💾 Data Files** (`.dat`) - for specialized data formats
-- **🗂️ JSON Files** (`.json`) - with memory-efficient processing
+- **🗂️ JSON Files** (`.json`) - with memory-efficient processing and flattening support
 
 ### 🌍 **Cross-Platform**
 - ✅ **Windows** (with automatic folder opening)
@@ -49,38 +50,31 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **📋 Header Preservation**: Maintains headers in all split files (CSV/TXT/DAT)
 - **🎛️ Smart Column Filtering**: Remove unwanted columns to reduce file sizes
 - **🌐 UTF-8 Support**: Full Unicode character support
-- **⚡ Smart JSON Processing**: Efficient size estimation for JSON files
+- **⚡ Smart JSON Processing**: Efficient size estimation for JSON files with nested object flattening
 - **📊 Detailed Statistics**: Track total rows, processed rows, current file, and file count
 - **🛡️ Safe Processing**: Preserves original files during splitting
 - **📝 Operation Logging**: Optional detailed logs with timestamps, column selection, and validation
 - **🎯 Precise Splitting**: Accurate size and row count splitting algorithms
-- **💾 OS-Appropriate Config Storage**: Settings automatically saved to system-appropriate locations (AppData on Windows, Application Support on macOS, .config on Linux)
-- **🔄 Configuration Migration**: Automatic migration from old settings files
-- **🎛️ Enhanced Delimiter Interface**: Streamlined custom delimiter input with automatic population
+- **🔄 Format Conversion**: Convert between different file formats during splitting (e.g., JSON to CSV)
 
 ---
 
-## ⚙️ Settings
+## 🎯 Quoted Identifier Mode
 
-### 🎛️ **Configuration Window**
-Access comprehensive application settings through **Edit → Settings** (or Ctrl+S):
+When outputting to CSV, TXT, or DAT formats, you can control how fields are quoted:
 
-- **📂 Open Directory After Split**: Automatically open the output folder when splitting completes
-- **📝 Enable Logging**: Control whether detailed operation logs are created
-- **🎯 Default Output File Type**: Set your preferred output format (CSV, TXT, DAT, or JSON)
-- **📋 Retain Header Row (Default)**: Control whether header rows are included in split files by default
+### 📋 **Quote Mode Options**
 
-### 💾 **Persistent Storage**
-Settings are automatically saved to OS-appropriate locations:
-- **Windows**: `%APPDATA%\FileSplitterPro\config.json`
-- **macOS**: `~/Library/Application Support/FileSplitterPro/config.json`
-- **Linux**: `~/.config/FileSplitterPro/config.json`
+- **🔧 Standard** (Default): Uses minimal quoting - only quotes fields that contain special characters like commas, quotes, or newlines. This is the most common and compatible option.
 
-### 🔄 **Migration & Backup**
-- Automatic migration from old settings files
-- Settings persist across application updates
-- Included in user data backups
-- Separate settings per user on shared machines
+- **📝 All Fields**: Quotes every single field in the output, regardless of content. Useful when you need consistent formatting or when working with systems that expect all fields to be quoted.
+
+- **🚫 Never Quote**: Never adds quotes around fields, even if they contain special characters. Use with caution as this can create invalid CSV files if fields contain delimiter characters.
+
+### 💡 **When to Use Each Mode**
+- **Standard**: Best for most use cases and maximum compatibility
+- **All Fields**: When you need consistent formatting or target system expects quoted fields
+- **Never Quote**: Only when you're certain your data doesn't contain delimiter characters
 
 ---
 
@@ -126,9 +120,11 @@ Click **Select Columns...** to choose which columns to include in your split fil
 - **💡 Smart Defaults**: All columns are included by default
 
 ### Step 5: 🔧 Fine-tune (Optional)
+- **📋 Header Control**: Toggle "Retain Header" to include/exclude header rows
 - **Delimiter Settings**: Let the app auto-detect or specify your own (CSV/TXT/DAT only)
 - **Output Format**: Choose between CSV, TXT, DAT, or JSON output
-- **Settings**: Access Edit → Settings to configure default behaviors
+- **🎯 Quote Mode**: Control field quoting behavior for CSV output
+- **📝 Logging**: Enable/disable detailed operation logs
 
 ### Step 6: ✂️ Split!
 Click **Run** and watch the real-time progress! ✨
@@ -156,7 +152,7 @@ Click **Run** and watch the real-time progress! ✨
 - **🎛️ Column Filtering**: Efficient column selection and filtering during processing
 - **🎯 Precise Splitting**: Accurate size and row count splitting
 - **📝 UTF-8 Support**: Full Unicode character support
-- **⚡ Smart JSON Processing**: Memory-efficient JSON array handling with size estimation
+- **⚡ Smart JSON Processing**: Memory-efficient JSON array handling with size estimation and nested object flattening
 
 ### Enhanced Statistics Dashboard
 - **📊 Total Rows**: Shows complete file analysis
@@ -182,10 +178,16 @@ Click **Run** and watch the real-time progress! ✨
 - **🛑 Cancellation Logs**: Records partial operations when cancelled
 - **🔍 Error Tracking**: Comprehensive error logging and reporting
 
+### JSON Processing Features
+- **🔄 Nested Object Flattening**: Automatically flattens nested JSON objects using dot notation
+- **📋 Smart Key Detection**: Intelligently discovers all possible keys across JSON objects
+- **🎯 Order Preservation**: Maintains key order from the original JSON structure
+- **⚡ Memory Efficient**: Processes large JSON arrays without loading everything into memory
+- **🔄 Format Conversion**: Convert JSON to CSV/TXT/DAT or split JSON to smaller JSON files
+
 ### Keyboard Shortcuts
 - **Ctrl+Q**: Quick exit
 - **Ctrl+D**: Open documentation/help
-- **Ctrl+S**: Open settings window
 
 ---
 
@@ -208,5 +210,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Author
 
-- 🐙 Developed by [@jackworthen](https://github.com/jackworthen)
-
+- 🐙 Developed by [Jack Worthen](https://github.com/jackworthen)

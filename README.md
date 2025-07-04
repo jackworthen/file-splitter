@@ -65,7 +65,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 
 When outputting to CSV, TXT, or DAT formats, you can control how fields are quoted:
 
-### 📋 **Quote Mode Options**
+### 📋 **Quoted Identifier Handling Options**
 
 - **🔧 Standard** (Default): Uses minimal quoting - only quotes fields that contain special characters like commas, quotes, or newlines. This is the most common and compatible option.
 
@@ -125,7 +125,7 @@ Click **Select Columns...** to choose which columns to include in your split fil
 - **📋 Header Control**: Toggle "Retain Header" to include/exclude header rows
 - **Delimiter Settings**: Let the app auto-detect or specify your own (CSV/TXT/DAT only)
 - **Output Format**: Choose between CSV, TXT, DAT, or JSON output
-- **🎯 Quote Mode**: Control field quoting behavior for CSV output
+- **🎯 Wuoted Identifier Handling**: Control field quoting behavior for CSV output
 - **📝 Logging**: Enable/disable detailed operation logs
 
 ### Step 6: ✂️ Split!

@@ -214,6 +214,7 @@ class FileSplitterApp:
         self.create_widgets()
         self.input_file.trace_add("write", self.on_input_file_change)
         self.file_type.trace_add("write", self.on_file_type_change)
+        self.split_value.trace_add("write", self.on_split_value_change)  # Add trace for split value
         
         # Set up keyboard shortcuts
         self.setup_keyboard_shortcuts()
@@ -284,7 +285,8 @@ class FileSplitterApp:
         file_frame = ttk.LabelFrame(main_frame, text="Source File", padding=10, style="Bold.TLabelframe")
         file_frame.grid(row=0, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
-        ttk.Entry(file_frame, textvariable=self.input_file, width=50).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
+        self.input_file_entry = tk.Entry(file_frame, textvariable=self.input_file, width=50)
+        self.input_file_entry.grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
         ttk.Button(file_frame, text="Browse", command=self.select_file).grid(row=0, column=1, pady=5)
         file_frame.columnconfigure(0, weight=1)
 
@@ -327,7 +329,7 @@ class FileSplitterApp:
                                            values=["Size (MB)", "Rows Per File"], width=15, state="readonly")
         self.split_mode_combo.pack(side="left", padx=(10, 15))
         
-        self.split_value_entry = ttk.Entry(split_mode_frame, textvariable=self.split_value, width=10, state="disabled")
+        self.split_value_entry = tk.Entry(split_mode_frame, textvariable=self.split_value, width=10, state="disabled")
         self.split_value_entry.pack(side="left")
         
         # File type selection - moved to row 2
@@ -648,6 +650,24 @@ class FileSplitterApp:
                 self.retain_header_checkbox.state(["!disabled"])
             # If no file selected, keep everything disabled
 
+    def highlight_field_error(self, field_widget):
+        """Highlight a field with light red background to indicate error"""
+        field_widget.configure(bg="#ffcccc")  # Light red background
+    
+    def clear_field_error(self, field_widget):
+        """Remove error highlighting from a field"""
+        field_widget.configure(bg="white")  # Reset to white background
+    
+    def on_split_value_change(self, *args):
+        """Handle changes to split value to clear error highlighting"""
+        if self.split_value.get().strip():
+            try:
+                value = int(self.split_value.get())
+                if value > 0:
+                    self.clear_field_error(self.split_value_entry)
+            except ValueError:
+                pass  # Keep highlighting if still invalid
+
     def get_delimiter_symbol(self, delimiter_text):
         """Extract the actual delimiter symbol from descriptive text"""
         if not delimiter_text:
@@ -695,12 +715,14 @@ class FileSplitterApp:
         mode = self.get_split_mode_value()
 
         if not file_path:
+            self.highlight_field_error(self.input_file_entry)
             messagebox.showwarning("Warning", "Please select a file to split.")
             return
 
         # NEW: Validate input file type before proceeding
         if not self.is_supported_input_file_type(file_path):
             _, ext = os.path.splitext(file_path)
+            self.highlight_field_error(self.input_file_entry)
             messagebox.showwarning(
                 "Unsupported Input File Type", 
                 f"The input file type '{ext}' is not supported for reading.\n\n"
@@ -718,6 +740,7 @@ class FileSplitterApp:
             if value <= 0:
                 raise ValueError
         except ValueError:
+            self.highlight_field_error(self.split_value_entry)
             messagebox.showwarning("Warning", "Please enter a valid positive number for the split value.")
             return
 
@@ -1345,6 +1368,10 @@ class FileSplitterApp:
         self.custom_delimiter.set("")  # Clear custom delimiter value
         self.retain_header.set(True)  # Reset to default (retain header)
         
+        # Clear error highlighting
+        self.clear_field_error(self.input_file_entry)
+        self.clear_field_error(self.split_value_entry)
+        
         # Clear column data
         self.available_columns = []
         self.selected_columns = []
@@ -1378,6 +1405,9 @@ class FileSplitterApp:
             self.available_columns = []
             self.selected_columns = []
         else:
+            # Clear error highlighting when a file is selected
+            self.clear_field_error(self.input_file_entry)
+            
             # Enable buttons when file is selected
             self.output_browse_button.config(state="normal")
             self.column_select_button.config(state="normal")

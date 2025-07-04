@@ -715,31 +715,53 @@ class FileSplitterApp:
         return delimiter_text
 
     def toggle_delim_fields(self):
-        """Enable/disable the delimiter combobox and auto-select detected delimiter"""
+        """Enable/disable the delimiter combobox and filter out detected delimiter"""
         # Enable/disable the delimiter combobox - only relevant for delimited output formats
         if (self.use_custom_delim.get() and 
             self.input_file.get() and 
             self.file_type.get() != ".json"):  # Only check output format
             self.delimiter_combo.config(state="readonly")
-            # Auto-select the detected delimiter if it's in our predefined list
-            detected = self.detected_delimiter.get()
             
-            # Map detected symbol to descriptive text
-            delimiter_map = {
-                ',': 'comma (,)',
-                '\t': 'tab (\\t)',
-                ';': 'semicolon (;)',
-                '|': 'pipe (|)',
-                '*': 'asterisk (*)'
-            }
+            # Only filter out detected delimiter for delimited input files (not JSON)
+            _, input_ext = os.path.splitext(self.input_file.get().lower())
+            is_json_input = input_ext == '.json'
             
-            if detected in delimiter_map:
-                self.custom_delimiter.set(delimiter_map[detected])
+            # All available options
+            all_options = ['comma (,)', 'tab (\\t)', 'semicolon (;)', 'pipe (|)', 'asterisk (*)']
+            
+            if not is_json_input:
+                # For delimited input files, filter out the detected delimiter
+                detected = self.detected_delimiter.get()
+                
+                # Map detected symbol to descriptive text
+                delimiter_map = {
+                    ',': 'comma (,)',
+                    '\t': 'tab (\\t)',
+                    ';': 'semicolon (;)',
+                    '|': 'pipe (|)',
+                    '*': 'asterisk (*)'
+                }
+                
+                # Remove the detected delimiter from options
+                detected_option = delimiter_map.get(detected, None)
+                if detected_option and detected_option in all_options:
+                    filtered_options = [opt for opt in all_options if opt != detected_option]
+                else:
+                    filtered_options = all_options
             else:
-                # Default to comma if detected delimiter is not in our list
-                self.custom_delimiter.set('comma (,)')
+                # For JSON input files, show all delimiter options (no filtering needed)
+                filtered_options = all_options
+                
+            # Update combo box values
+            self.delimiter_combo['values'] = filtered_options
+            
+            # Clear current selection since we're showing new options
+            self.custom_delimiter.set('')
+            
         else:
             self.delimiter_combo.config(state="disabled")
+            # Reset to all options when disabled
+            self.delimiter_combo['values'] = ['comma (,)', 'tab (\\t)', 'semicolon (;)', 'pipe (|)', 'asterisk (*)']
     
     def update_quote_mode_state(self):
         """Enable/disable quote mode dropdown based on file selection and output format"""

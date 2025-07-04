@@ -6,6 +6,7 @@ from tkinter import ttk, filedialog, messagebox, Menu
 import webbrowser
 import time
 import json
+import math
 
 class ColumnSelectionWindow:
     def __init__(self, parent, columns, selected_columns):
@@ -327,7 +328,7 @@ class FileSplitterApp:
         ttk.Label(split_mode_frame, text="Split Mode:").pack(side="left")
         
         self.split_mode_combo = ttk.Combobox(split_mode_frame, textvariable=self.split_mode, 
-                                           values=["Size (MB)", "Rows Per File"], width=15, state="readonly")
+                                           values=["Size (MB)", "Rows Per File", "Number of Files"], width=15, state="readonly")
         self.split_mode_combo.pack(side="left", padx=(10, 15))
         
         self.split_value_entry = tk.Entry(split_mode_frame, textvariable=self.split_value, width=10, state="disabled")
@@ -645,8 +646,10 @@ class FileSplitterApp:
         """Get the actual mode value for processing"""
         if self.split_mode.get() == "Size (MB)":
             return "size"
-        else:  # "Rows Per File"
+        elif self.split_mode.get() == "Rows Per File":
             return "rows"
+        else:  # "Number of Files"
+            return "files"
 
     def on_file_type_change(self, *args):
         """Handle file type changes to enable/disable delimiter and header options"""
@@ -959,6 +962,21 @@ class FileSplitterApp:
                                            analysis_rows_counted, 0, [], "during analysis", part_num)
                 self.root.after(0, lambda: self.show_cancelled())
                 return
+
+            # NEW: Handle "Number of Files" mode
+            if mode == "files":
+                # Calculate rows per file for even distribution
+                num_files = size_or_rows
+                if num_files > total_rows:
+                    # If requesting more files than rows, limit to one row per file
+                    num_files = total_rows
+                    messagebox.showinfo("Info", f"Requested {size_or_rows} files, but only {total_rows} rows available. Creating {num_files} files instead.")
+                
+                # Calculate rows per file (using ceiling to ensure all rows are included)
+                max_rows = math.ceil(total_rows / num_files)
+                # Switch to rows mode for the actual splitting
+                mode = "rows"
+                size_or_rows = max_rows
 
             # Second pass: actual splitting with progress tracking and column filtering
             max_size_bytes = size_or_rows * 1024 * 1024 if mode == "size" else None

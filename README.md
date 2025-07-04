@@ -14,6 +14,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 ### 🎯 **Core Functionality**
 - **📏 Split by Size**: Break files into chunks of specified megabytes
 - **📊 Split by Rows**: Divide files by exact row count
+- **📂 Split by Number of Files**: Split data into a certain number of files
 - **🔧 Smart Delimiter Detection**: Automatically detects CSV delimiters
 - **⚙️ Custom Delimiters**: Use your own delimiter for maximum flexibility
 - **🎛️ Column Selection**: Choose which columns to include or exclude from split files
@@ -113,6 +114,7 @@ Pick where you want your split files to be saved. By default, it creates a `spli
 Choose your splitting method:
 - **📏 By Size**: Enter the maximum size in MB per file
 - **📊 By Rows**: Enter the maximum number of rows per file
+- **📂 By Number of Files**: Enter the maximum number files for split
 
 ### Step 4: 🎛️ Select Columns (Optional)
 Click **Select Columns...** to choose which columns to include in your split files:

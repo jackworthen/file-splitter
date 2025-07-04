@@ -1,7 +1,7 @@
 # 📁✂️ File Splitter Pro
 > 🚀 **Split large files with ease!** A powerful, user-friendly GUI application for splitting CSV, TXT, DAT and JSON files by size or row count.
 
-✨ [Features](#-features) • 🎯 [Quoted Identifier Mode](#-quoted-identifier-mode) • 🚀 [Quick Start](#-quick-start) • 🎮 [How to Use](#-how-to-use)
+✨ [Features](#-features) • 🎯 [Quoted Identifier Handling](#-quoted-identifier-mode) • 🚀 [Quick Start](#-quick-start) • 🎮 [How to Use](#-how-to-use)
 
 ---
 
@@ -20,7 +20,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **✅ Row Count Validation**: Automatic verification that input and output row counts match
 - **🛑 Cancellation Support**: Stop operations mid-process with partial file preservation
 - **📋 Header Row Control**: Option to include or exclude header rows in split files
-- **🎯 Quoted Identifier Mode**: Control how fields are quoted in CSV output
+- **🎯 Quoted Identifier Handling**: Control how fields are quoted in CSV output
 
 ### 🎨 **User Experience**
 - **🖥️ Beautiful GUI**: Clean, modern interface built with tkinter
@@ -61,7 +61,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 
 ---
 
-## 🎯 Quoted Identifier Mode
+## 🎯 Quoted Identifier Handling
 
 When outputting to CSV, TXT, or DAT formats, you can control how fields are quoted:
 

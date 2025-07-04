@@ -93,7 +93,7 @@ class ColumnSelectionWindow:
         bottom_frame = ttk.Frame(main_frame)
         bottom_frame.grid(row=2, column=0, columnspan=3, pady=(15, 0), sticky="ew")
         
-        ttk.Button(bottom_frame, text="OK", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
+        ttk.Button(bottom_frame, text="Save", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
         ttk.Button(bottom_frame, text="Cancel", command=self.cancel_clicked).grid(row=0, column=1)
         
         # Configure grid weights
@@ -358,7 +358,7 @@ class FileSplitterApp:
         quote_frame = ttk.Frame(settings_frame)
         quote_frame.grid(row=4, column=0, columnspan=2, pady=(10, 0), sticky="w")
         
-        ttk.Label(quote_frame, text="Quoted Identifier Mode:").pack(side="left")
+        ttk.Label(quote_frame, text="Quoted Identifier Handling:").pack(side="left")
         
         self.quote_combo = ttk.Combobox(quote_frame, textvariable=self.quote_mode, 
                                       values=["Standard", 

@@ -177,11 +177,10 @@ class FileSplitterApp:
 
         # Variables
         self.input_file = tk.StringVar()
-        self.max_size = tk.StringVar()
-        self.max_rows = tk.StringVar()
+        self.split_value = tk.StringVar()  # Single value for both size and rows
         self.file_type = tk.StringVar(value=".csv")
         self.output_dir = tk.StringVar()
-        self.split_mode = tk.StringVar(value="size")
+        self.split_mode = tk.StringVar(value="Size (MB)")  # Changed to descriptive text
         self.use_custom_delim = tk.BooleanVar(value=False)
         self.custom_delimiter = tk.StringVar(value="")
         self.detected_delimiter = tk.StringVar(value="")
@@ -318,19 +317,18 @@ class FileSplitterApp:
                                                      variable=self.retain_header, state="disabled")
         self.retain_header_checkbox.pack(side="left", padx=(10, 0))
         
-        # Split mode selection - moved to row 1 - using sub-frames for tighter control
+        # Split mode selection - moved to row 1
         split_mode_frame = ttk.Frame(settings_frame)
         split_mode_frame.grid(row=1, column=0, columnspan=4, sticky="w", pady=(0, 0))
         
-        ttk.Radiobutton(split_mode_frame, text="Split by Size (MB):", variable=self.split_mode, 
-                       value="size", command=self.toggle_mode).pack(side="left")
-        self.size_entry = ttk.Entry(split_mode_frame, textvariable=self.max_size, width=10)
-        self.size_entry.pack(side="left", padx=(5, 15))
+        ttk.Label(split_mode_frame, text="Split Mode:").pack(side="left")
         
-        ttk.Radiobutton(split_mode_frame, text="Split by Rows:", variable=self.split_mode, 
-                       value="rows", command=self.toggle_mode).pack(side="left")
-        self.row_entry = ttk.Entry(split_mode_frame, textvariable=self.max_rows, width=10, state="disabled")
-        self.row_entry.pack(side="left", padx=(5, 0))
+        self.split_mode_combo = ttk.Combobox(split_mode_frame, textvariable=self.split_mode, 
+                                           values=["Size (MB)", "Rows Per File"], width=15, state="readonly")
+        self.split_mode_combo.pack(side="left", padx=(10, 15))
+        
+        self.split_value_entry = ttk.Entry(split_mode_frame, textvariable=self.split_value, width=10, state="disabled")
+        self.split_value_entry.pack(side="left")
         
         # File type selection - moved to row 2
         file_type_frame = ttk.Frame(settings_frame)
@@ -626,13 +624,12 @@ class FileSplitterApp:
         if path:
             self.output_dir.set(path)
 
-    def toggle_mode(self):
-        if self.split_mode.get() == "size":
-            self.size_entry.config(state="normal")
-            self.row_entry.config(state="disabled")
-        else:
-            self.size_entry.config(state="disabled")
-            self.row_entry.config(state="normal")
+    def get_split_mode_value(self):
+        """Get the actual mode value for processing"""
+        if self.split_mode.get() == "Size (MB)":
+            return "size"
+        else:  # "Rows Per File"
+            return "rows"
 
     def on_file_type_change(self, *args):
         """Handle file type changes to enable/disable delimiter and header options"""
@@ -695,7 +692,7 @@ class FileSplitterApp:
         file_path = self.input_file.get()
         extension = self.file_type.get().strip().lower()
         out_dir = self.output_dir.get()
-        mode = self.split_mode.get()
+        mode = self.get_split_mode_value()
 
         if not file_path:
             messagebox.showwarning("Warning", "Please select a file to split.")
@@ -717,11 +714,11 @@ class FileSplitterApp:
             return
 
         try:
-            value = int(self.max_size.get() if mode == "size" else self.max_rows.get())
+            value = int(self.split_value.get())
             if value <= 0:
                 raise ValueError
         except ValueError:
-            messagebox.showwarning("Warning", "Please enter a valid positive number for size or rows.")
+            messagebox.showwarning("Warning", "Please enter a valid positive number for the split value.")
             return
 
         if not out_dir:
@@ -1341,9 +1338,8 @@ class FileSplitterApp:
         self.output_dir.set("")  # Clear output directory
         
         # Reset Split Settings
-        self.split_mode.set("size")  # Reset to default split mode
-        self.max_size.set("")  # Clear size value
-        self.max_rows.set("")  # Clear rows value
+        self.split_mode.set("Size (MB)")  # Reset to default split mode
+        self.split_value.set("")  # Clear split value
         self.file_type.set(".csv")  # Reset to default file type
         self.use_custom_delim.set(False)  # Reset custom delimiter checkbox
         self.custom_delimiter.set("")  # Clear custom delimiter value
@@ -1354,7 +1350,6 @@ class FileSplitterApp:
         self.selected_columns = []
         
         # Update UI states (this will trigger on_input_file_change which disables buttons appropriately)
-        self.toggle_mode()  # Update entry states based on split mode
         self.toggle_delim_fields()  # Update delimiter field states
         
         # Disable Reset button again
@@ -1366,6 +1361,7 @@ class FileSplitterApp:
             self.output_browse_button.config(state="disabled")
             self.column_select_button.config(state="disabled")
             self.retain_header_checkbox.state(["disabled"])  # NEW: Disable when no file
+            self.split_value_entry.config(state="disabled")  # Disable split value input
             self.output_dir.set("")  # Clear output directory
             
             self.delim_checkbox.state(["disabled"])
@@ -1385,6 +1381,7 @@ class FileSplitterApp:
             # Enable buttons when file is selected
             self.output_browse_button.config(state="normal")
             self.column_select_button.config(state="normal")
+            self.split_value_entry.config(state="normal")  # Enable split value input
             
             # Enable delimiter and header options based on OUTPUT format
             if self.file_type.get() != ".json":

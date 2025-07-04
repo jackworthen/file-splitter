@@ -1,7 +1,7 @@
 # 📁✂️ File Splitter Pro
 > 🚀 **Split large files with ease!** A powerful, user-friendly GUI application for splitting CSV, TXT, DAT and JSON files by size or row count.
 
-🚀[Quick Start](#-quick-start) • 🎮 [How to Use](#-how-to-use) • ✨ [Features](#-features) • 🎯 [Quoted Identifier Handling](#-quoted-identifier-mode) 
+🚀[Quick Start](#-quick-start) • 🎮 [How to Use](#-how-to-use) • ✨ [Features](#-features) • 🎯 [Quoted Identifier Handling](#-quoted-identifier-handling) 
 
 ---
 

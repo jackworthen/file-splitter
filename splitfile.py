@@ -337,7 +337,7 @@ class FileSplitterApp:
         file_type_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w")
         
         ttk.Label(file_type_frame, text="Output file type:").pack(side="left")
-        ttk.Combobox(file_type_frame, textvariable=self.file_type, values=[".csv", ".txt", ".dat", ".json"], width=10).pack(side="left", padx=(10, 0))
+        ttk.Combobox(file_type_frame, textvariable=self.file_type, values=[".csv", ".tsv", ".txt", ".dat", ".json"], width=10).pack(side="left", padx=(10, 0))
 
         # Delimiter settings - moved to row 3
         delimiter_frame = ttk.Frame(settings_frame)
@@ -350,7 +350,7 @@ class FileSplitterApp:
 
         self.delimiter_combo = ttk.Combobox(delimiter_frame, textvariable=self.custom_delimiter, 
                                           width=15, state="disabled")
-        self.delimiter_combo['values'] = ('comma (,)', 'asterisk (*)', 'semicolon (;)', 'pipe (|)')
+        self.delimiter_combo['values'] = ('comma (,)', 'tab (\\t)', 'semicolon (;)', 'pipe (|)', 'asterisk (*)')
         self.delimiter_combo.pack(side="left", padx=(10, 0))
         
         # Configure column weights to maintain stable layout
@@ -444,14 +444,14 @@ class FileSplitterApp:
         _, ext = os.path.splitext(file_path.lower())
         
         # Supported input file types
-        supported_extensions = {'.csv', '.txt', '.dat', '.json'}
+        supported_extensions = {'.csv', '.tsv', '.txt', '.dat', '.json'}
         
         return ext in supported_extensions
 
     def select_file(self):
         path = filedialog.askopenfilename(
             title="Select File to Split",
-            filetypes=[("CSV files", "*.csv"), ("DAT files", "*.dat"), 
+            filetypes=[("CSV files", "*.csv"), ("TSV files", "*.tsv"), ("DAT files", "*.dat"), 
                       ("TXT files", "*.txt"), ("JSON files", "*.json"), ("All files", "*.*")]
         )
         if path:
@@ -463,6 +463,7 @@ class FileSplitterApp:
                     f"The selected file type '{ext}' is not supported as an input file.\n\n"
                     f"Supported input file types are:\n"
                     f"• CSV files (.csv)\n"
+                    f"• TSV files (.tsv)\n"
                     f"• Text files (.txt)\n"
                     f"• Data files (.dat)\n"
                     f"• JSON files (.json)\n\n"
@@ -677,7 +678,11 @@ class FileSplitterApp:
         if '(' in delimiter_text and ')' in delimiter_text:
             start = delimiter_text.find('(') + 1
             end = delimiter_text.find(')')
-            return delimiter_text[start:end]
+            symbol = delimiter_text[start:end]
+            # Handle special case for tab
+            if symbol == '\\t':
+                return '\t'
+            return symbol
         
         # Fallback - if it's just a symbol already
         return delimiter_text
@@ -695,9 +700,10 @@ class FileSplitterApp:
             # Map detected symbol to descriptive text
             delimiter_map = {
                 ',': 'comma (,)',
-                '*': 'asterisk (*)',
+                '\t': 'tab (\\t)',
                 ';': 'semicolon (;)',
-                '|': 'pipe (|)'
+                '|': 'pipe (|)',
+                '*': 'asterisk (*)'
             }
             
             if detected in delimiter_map:
@@ -728,6 +734,7 @@ class FileSplitterApp:
                 f"The input file type '{ext}' is not supported for reading.\n\n"
                 f"Supported input file types are:\n"
                 f"• CSV files (.csv)\n"
+                f"• TSV files (.tsv)\n"
                 f"• Text files (.txt)\n"
                 f"• Data files (.dat)\n"
                 f"• JSON files (.json)\n\n"

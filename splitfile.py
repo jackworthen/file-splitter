@@ -7,6 +7,7 @@ import webbrowser
 import time
 import json
 import math
+import platform
 
 class ColumnSelectionWindow:
     def __init__(self, parent, columns, selected_columns):
@@ -212,14 +213,95 @@ class FileSplitterApp:
         self.output_row_count = 0
         self.current_part_num = 0
 
+        # Load configuration settings
+        self.load_config()
+
         self.create_menu()
         self.create_widgets()
         self.input_file.trace_add("write", self.on_input_file_change)
         self.file_type.trace_add("write", self.on_file_type_change)
         self.split_value.trace_add("write", self.on_split_value_change)  # Add trace for split value
         
+        # Add traces for settings to auto-save config when changed
+        self.open_dir_after_split.trace_add("write", self.on_setting_change)
+        self.create_log.trace_add("write", self.on_setting_change)
+        self.retain_header.trace_add("write", self.on_setting_change)
+        
         # Set up keyboard shortcuts
         self.setup_keyboard_shortcuts()
+
+    def get_config_dir(self):
+        """Get the appropriate configuration directory for the current OS"""
+        system = platform.system()
+        
+        if system == "Windows":
+            # Use %APPDATA% on Windows
+            config_dir = os.path.join(os.getenv('APPDATA'), 'FileSplitterPro')
+        elif system == "Darwin":  # macOS
+            # Use ~/Library/Application Support on macOS
+            home_dir = os.path.expanduser("~")
+            config_dir = os.path.join(home_dir, "Library", "Application Support", "FileSplitterPro")
+        else:  # Linux and other Unix-like systems
+            # Use ~/.config on Linux
+            home_dir = os.path.expanduser("~")
+            config_dir = os.path.join(home_dir, ".config", "FileSplitterPro")
+        
+        return config_dir
+
+    def get_config_file_path(self):
+        """Get the full path to the config.json file"""
+        return os.path.join(self.get_config_dir(), "config.json")
+
+    def load_config(self):
+        """Load configuration settings from config.json"""
+        config_file = self.get_config_file_path()
+        
+        try:
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                # Load settings with defaults
+                self.open_dir_after_split.set(config.get('open_dir_after_split', False))
+                self.create_log.set(config.get('create_log', True))
+                self.retain_header.set(config.get('retain_header', True))
+                
+                print(f"Configuration loaded from: {config_file}")
+            else:
+                print(f"No config file found at: {config_file}. Using defaults.")
+                
+        except Exception as e:
+            print(f"Error loading config: {e}. Using defaults.")
+            # Keep default values if loading fails
+
+    def save_config(self):
+        """Save current configuration settings to config.json"""
+        config_dir = self.get_config_dir()
+        config_file = self.get_config_file_path()
+        
+        try:
+            # Create config directory if it doesn't exist
+            os.makedirs(config_dir, exist_ok=True)
+            
+            # Prepare config data
+            config = {
+                'open_dir_after_split': self.open_dir_after_split.get(),
+                'create_log': self.create_log.get(),
+                'retain_header': self.retain_header.get()
+            }
+            
+            # Save to file
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2)
+                
+            print(f"Configuration saved to: {config_file}")
+            
+        except Exception as e:
+            print(f"Error saving config: {e}")
+
+    def on_setting_change(self, *args):
+        """Called whenever a setting changes - saves config automatically"""
+        self.save_config()
 
     def setup_styles(self):
         """Configure clean styling for the application"""
@@ -1462,7 +1544,9 @@ class FileSplitterApp:
         self.use_custom_delim.set(False)  # Reset custom delimiter checkbox
         self.custom_delimiter.set("")  # Clear custom delimiter value
         self.quote_mode.set("Standard")  # Reset quote mode
-        self.retain_header.set(True)  # Reset to default (retain header)
+        
+        # NOTE: We don't reset Settings menu options (open_dir_after_split, create_log, retain_header)
+        # because they are persistent user preferences
         
         # Clear error highlighting
         self.clear_field_error(self.input_file_entry)

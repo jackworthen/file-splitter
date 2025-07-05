@@ -2,7 +2,7 @@ import os
 import csv
 import threading
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, Menu
+from tkinter import ttk, filedialog, messagebox, Menu, simpledialog
 import webbrowser
 import time
 import json
@@ -10,25 +10,27 @@ import math
 import platform
 
 class ColumnSelectionWindow:
-    def __init__(self, parent, columns, selected_columns):
+    def __init__(self, parent, columns, selected_columns, column_renames=None):
         self.parent = parent
         self.columns = columns
         self.selected_columns = selected_columns.copy()
+        self.column_renames = column_renames.copy() if column_renames else {}
         self.result = None
+        self.result_renames = None
         
         # Create window
         self.window = tk.Toplevel(parent)
         self.window.title("Column Filter")
-        self.window.geometry("600x400")
+        self.window.geometry("650x450")
         self.window.resizable(True, True)
         self.window.transient(parent)
         self.window.grab_set()
         
         # Center the window
         self.window.update_idletasks()
-        x = (self.window.winfo_screenwidth() // 2) - (600 // 2)
-        y = (self.window.winfo_screenheight() // 2) - (400 // 2)
-        self.window.geometry(f"600x400+{x}+{y}")
+        x = (self.window.winfo_screenwidth() // 2) - (650 // 2)
+        y = (self.window.winfo_screenheight() // 2) - (450 // 2)
+        self.window.geometry(f"650x450+{x}+{y}")
         
         self.create_widgets()
         self.populate_lists()
@@ -78,6 +80,12 @@ class ColumnSelectionWindow:
         self.exclude_all_button = ttk.Button(button_frame, text="Exclude All", command=self.exclude_all)
         self.exclude_all_button.grid(row=5, column=0, pady=5, sticky="ew")
         
+        ttk.Separator(button_frame, orient="horizontal").grid(row=6, column=0, pady=10, sticky="ew")
+        
+        # Add rename button
+        self.rename_button = ttk.Button(button_frame, text="Rename", command=self.rename_selected, state="disabled")
+        self.rename_button.grid(row=7, column=0, pady=5, sticky="ew")
+        
         # Right side - Included columns
         included_frame = ttk.LabelFrame(main_frame, text="Included Columns", padding=10)
         included_frame.grid(row=1, column=2, sticky="nsew", padx=(5, 0))
@@ -91,6 +99,9 @@ class ColumnSelectionWindow:
         included_frame.columnconfigure(0, weight=1)
         included_frame.rowconfigure(0, weight=1)
         
+        # Bind selection event to enable/disable rename button
+        self.included_listbox.bind('<<ListboxSelect>>', self.on_included_selection_change)
+        
         # Bottom buttons
         bottom_frame = ttk.Frame(main_frame)
         bottom_frame.grid(row=2, column=0, columnspan=3, pady=(15, 0), sticky="ew")
@@ -103,36 +114,183 @@ class ColumnSelectionWindow:
         main_frame.columnconfigure(2, weight=1)
         main_frame.rowconfigure(1, weight=1)
         
+    def on_included_selection_change(self, event):
+        """Handle selection change in the included columns listbox"""
+        selected_indices = self.included_listbox.curselection()
+        
+        # Enable rename button only if exactly one item is selected
+        if len(selected_indices) == 1:
+            self.rename_button.config(state="normal")
+        else:
+            self.rename_button.config(state="disabled")
+    
+    def get_display_name(self, column_name):
+        """Get the display name for a column (renamed or original)"""
+        return self.column_renames.get(column_name, column_name)
+    
     def populate_lists(self):
         """Populate the listboxes with columns"""
         excluded_columns = [col for col in self.columns if col not in self.selected_columns]
         
         self.excluded_listbox.delete(0, tk.END)
         for col in excluded_columns:
-            self.excluded_listbox.insert(tk.END, col)
+            display_name = self.get_display_name(col)
+            self.excluded_listbox.insert(tk.END, display_name)
             
         self.included_listbox.delete(0, tk.END)
         for col in self.selected_columns:
-            self.included_listbox.insert(tk.END, col)
+            display_name = self.get_display_name(col)
+            self.included_listbox.insert(tk.END, display_name)
+        
+        # Reset rename button state since selection is cleared
+        self.rename_button.config(state="disabled")
+    
+    def get_original_column_name(self, display_name):
+        """Get the original column name from a display name"""
+        # Find the original name by looking through the renames mapping
+        for original, renamed in self.column_renames.items():
+            if renamed == display_name:
+                return original
+        # If not found in renames, it's likely the original name itself
+        return display_name
+    
+    def rename_selected(self):
+        """Allow user to rename the selected column in the included list"""
+        selected_indices = self.included_listbox.curselection()
+        
+        if not selected_indices:
+            messagebox.showwarning("Warning", "Please select a column from the 'Included Columns' list to rename.")
+            return
+            
+        # Since button is only enabled when exactly one item is selected, this check is redundant now
+        # but keeping it for safety
+        if len(selected_indices) > 1:
+            messagebox.showwarning("Warning", "Please select only one column to rename.")
+            return
+            
+        selected_index = selected_indices[0]
+        current_display_name = self.included_listbox.get(selected_index)
+        original_name = self.get_original_column_name(current_display_name)
+        
+        # Create a custom dialog for renaming
+        new_name = self.show_rename_dialog(current_display_name)
+        
+        if new_name and new_name.strip():
+            new_name = new_name.strip()
+            
+            # Check if the new name conflicts with other renamed columns
+            existing_renames = set(self.column_renames.values())
+            if new_name in existing_renames and new_name != current_display_name:
+                messagebox.showwarning("Warning", f"The name '{new_name}' is already used by another column.")
+                return
+                
+            # Update the rename mapping
+            if new_name != original_name:
+                self.column_renames[original_name] = new_name
+            else:
+                # If renamed back to original, remove from renames mapping
+                if original_name in self.column_renames:
+                    del self.column_renames[original_name]
+            
+            # Refresh the display
+            self.populate_lists()
+            
+            # Re-select the renamed item to keep it selected
+            for i in range(self.included_listbox.size()):
+                if self.get_original_column_name(self.included_listbox.get(i)) == original_name:
+                    self.included_listbox.selection_set(i)
+                    self.rename_button.config(state="normal")
+                    break
+
+    def show_rename_dialog(self, current_name):
+        """Show a custom rename dialog with better sizing"""
+        # Create the dialog window
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Rename Column")
+        dialog.geometry("400x180")
+        dialog.resizable(False, False)
+        dialog.transient(self.window)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (400 // 2)
+        y = (dialog.winfo_screenheight() // 2) - (180 // 2)
+        dialog.geometry(f"400x180+{x}+{y}")
+        
+        result = {"value": None}
+        
+        # Create the content frame
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill="both", expand=True)
+        
+        # Label
+        label = ttk.Label(main_frame, text=f"Enter new name for column:")
+        label.pack(pady=(0, 5))
+        
+        # Current name label (in bold to make it clear)
+        current_label = ttk.Label(main_frame, text=current_name, font=("Segoe UI", 11, "bold"))
+        current_label.pack(pady=(0, 15))
+        
+        # Entry field
+        entry_var = tk.StringVar(value=current_name)
+        entry = ttk.Entry(main_frame, textvariable=entry_var, font=("Segoe UI", 10), width=40)
+        entry.pack(pady=(0, 20), ipady=3)
+        entry.select_range(0, tk.END)  # Select all text
+        entry.focus()
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack()
+        
+        def on_ok():
+            result["value"] = entry_var.get()
+            dialog.destroy()
+            
+        def on_cancel():
+            result["value"] = None
+            dialog.destroy()
+            
+        def on_enter(event):
+            on_ok()
+        
+        # Bind Enter key to OK
+        entry.bind('<Return>', on_enter)
+        dialog.bind('<Escape>', lambda e: on_cancel())
+        
+        # Buttons
+        ok_button = ttk.Button(button_frame, text="Save", command=on_ok)
+        ok_button.pack(side="left", padx=(0, 10))
+        
+        cancel_button = ttk.Button(button_frame, text="Cancel", command=on_cancel)
+        cancel_button.pack(side="left")
+        
+        # Wait for dialog to close
+        dialog.wait_window()
+        
+        return result["value"]
     
     def include_selected(self):
         """Move selected columns from excluded to included"""
         selected_indices = self.excluded_listbox.curselection()
-        selected_items = [self.excluded_listbox.get(i) for i in selected_indices]
+        selected_display_names = [self.excluded_listbox.get(i) for i in selected_indices]
         
-        for item in selected_items:
-            self.selected_columns.append(item)
+        for display_name in selected_display_names:
+            original_name = self.get_original_column_name(display_name)
+            if original_name not in self.selected_columns:
+                self.selected_columns.append(original_name)
             
         self.populate_lists()
     
     def exclude_selected(self):
         """Move selected columns from included to excluded"""
         selected_indices = self.included_listbox.curselection()
-        selected_items = [self.included_listbox.get(i) for i in selected_indices]
+        selected_display_names = [self.included_listbox.get(i) for i in selected_indices]
         
-        for item in selected_items:
-            if item in self.selected_columns:
-                self.selected_columns.remove(item)
+        for display_name in selected_display_names:
+            original_name = self.get_original_column_name(display_name)
+            if original_name in self.selected_columns:
+                self.selected_columns.remove(original_name)
                 
         self.populate_lists()
     
@@ -153,11 +311,13 @@ class ColumnSelectionWindow:
             return
             
         self.result = self.selected_columns.copy()
+        self.result_renames = self.column_renames.copy()
         self.window.destroy()
     
     def cancel_clicked(self):
         """User clicked Cancel"""
         self.result = None
+        self.result_renames = None
         self.window.destroy()
 
 class FileSplitterApp:
@@ -194,6 +354,7 @@ class FileSplitterApp:
         # Column selection variables
         self.available_columns = []
         self.selected_columns = []
+        self.column_renames = {}  # Maps original column names to renamed versions
 
         # Progress tracking
         self.cancel_event = threading.Event()
@@ -726,11 +887,16 @@ class FileSplitterApp:
             messagebox.showwarning("Warning", "No columns found in the selected file.")
             return
             
-        dialog = ColumnSelectionWindow(self.root, self.available_columns, self.selected_columns)
+        dialog = ColumnSelectionWindow(self.root, self.available_columns, self.selected_columns, self.column_renames)
         self.root.wait_window(dialog.window)
         
         if dialog.result is not None:
             self.selected_columns = dialog.result
+            self.column_renames = dialog.result_renames
+
+    def get_output_column_names(self, original_columns):
+        """Get the output column names (renamed if applicable) for the given original columns"""
+        return [self.column_renames.get(col, col) for col in original_columns]
 
     def select_output_directory(self):
         path = filedialog.askdirectory(title="Select Output Directory")
@@ -1014,8 +1180,11 @@ class FileSplitterApp:
                 # Filter header to only include selected columns, preserving order
                 if self.selected_columns:
                     filtered_header = [col for col in header if col in self.selected_columns]
+                    # Apply column renames to the filtered header for output
+                    output_header = self.get_output_column_names(filtered_header)
                 else:
                     filtered_header = header
+                    output_header = self.get_output_column_names(filtered_header)
                     
             else:
                 # Handle CSV/TXT/DAT input
@@ -1028,9 +1197,12 @@ class FileSplitterApp:
                     if self.selected_columns:
                         header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
                         filtered_header = [header[i] for i in header_indices]
+                        # Apply column renames to the filtered header for output
+                        output_header = self.get_output_column_names(filtered_header)
                     else:
                         header_indices = list(range(len(header)))
                         filtered_header = header
+                        output_header = self.get_output_column_names(filtered_header)
                     
                     # Count only data rows (excluding header)
                     for _ in reader:
@@ -1103,7 +1275,7 @@ class FileSplitterApp:
                     outfile = open(output_path, 'w', newline='', encoding='utf-8')
                     writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                     if include_header:
-                        writer.writerow(filtered_header)
+                        writer.writerow(output_header)
                     current_size = outfile.tell()
                     current_rows = 0
 
@@ -1139,9 +1311,12 @@ class FileSplitterApp:
                         self.update_progress(processed_rows, total_rows, output_path, part_num)
                     
                     if is_json_format:
-                        # JSON to JSON - recreate object with selected columns only
+                        # JSON to JSON - recreate object with selected columns only using renamed headers
                         if isinstance(json_row, dict):
-                            filtered_obj = {col: flattened_row.get(col, '') for col in filtered_header}
+                            filtered_obj = {}
+                            for i, col in enumerate(filtered_header):
+                                output_name = output_header[i]
+                                filtered_obj[output_name] = flattened_row.get(col, '')
                         else:
                             filtered_obj = json_row
                             
@@ -1191,7 +1366,7 @@ class FileSplitterApp:
                             outfile = open(output_path, 'w', newline='', encoding='utf-8')
                             writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                             if include_header:
-                                writer.writerow(filtered_header)
+                                writer.writerow(output_header)
                             current_size = outfile.tell()
                             current_rows = 0
 
@@ -1230,9 +1405,12 @@ class FileSplitterApp:
                     if self.selected_columns:
                         header_indices = [i for i, col in enumerate(header) if col in self.selected_columns]
                         filtered_header = [header[i] for i in header_indices]
+                        # Apply column renames to the filtered header for output
+                        output_header = self.get_output_column_names(filtered_header)
                     else:
                         header_indices = list(range(len(header)))
                         filtered_header = header
+                        output_header = self.get_output_column_names(filtered_header)
 
                     processed_rows = 0
                     output_path = os.path.join(output_dir, f"{base_filename}_{part_num}{file_extension}")
@@ -1248,7 +1426,7 @@ class FileSplitterApp:
                         outfile = open(output_path, 'w', newline='', encoding='utf-8')
                         writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                         if include_header:  # NEW: Conditionally write header
-                            writer.writerow(filtered_header)  # Write filtered header
+                            writer.writerow(output_header)  # Write renamed header
                         current_size = outfile.tell()
                         current_rows = 0
 
@@ -1280,8 +1458,8 @@ class FileSplitterApp:
                             self.update_progress(processed_rows, total_rows, output_path, part_num)
                         
                         if is_json_format:
-                            # Convert row to JSON object using filtered header and row
-                            row_dict = dict(zip(filtered_header, filtered_row))
+                            # Convert row to JSON object using renamed header and row
+                            row_dict = dict(zip(output_header, filtered_row))
                             current_json_data.append(row_dict)
                             current_rows += 1
                             
@@ -1330,7 +1508,7 @@ class FileSplitterApp:
                                 outfile = open(output_path, 'w', newline='', encoding='utf-8')
                                 writer = csv.writer(outfile, delimiter=custom_delimiter, quoting=quote_mode)
                                 if include_header:  # NEW: Conditionally write header for new files
-                                    writer.writerow(filtered_header)  # Write filtered header
+                                    writer.writerow(output_header)  # Write renamed header
                                 current_size = outfile.tell()
                                 current_rows = 0
 
@@ -1555,6 +1733,7 @@ class FileSplitterApp:
         # Clear column data
         self.available_columns = []
         self.selected_columns = []
+        self.column_renames = {}
         
         # Update UI states (this will trigger on_input_file_change which disables buttons appropriately)
         self.toggle_delim_fields()  # Update delimiter field states
@@ -1583,6 +1762,7 @@ class FileSplitterApp:
             # Clear column data
             self.available_columns = []
             self.selected_columns = []
+            self.column_renames = {}
             
             # Update quote mode state when no file is selected
             self.update_quote_mode_state()

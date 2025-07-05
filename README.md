@@ -17,23 +17,25 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **📂 Split by Number of Files**: Split data into a certain number of files
 - **🔧 Smart Delimiter Detection**: Automatically detects CSV delimiters
 - **⚙️ Custom Delimiters**: Use your own delimiter for maximum flexibility
-- **🎛️ Column Selection**: Choose which columns to include or exclude from split files
+- **🎛️ Column Selection & Renaming**: Choose which columns to include/exclude and rename them for better output
 - **✅ Row Count Validation**: Automatic verification that input and output row counts match
 - **🛑 Cancellation Support**: Stop operations mid-process with partial file preservation
 - **📋 Header Row Control**: Option to include or exclude header rows in split files
 - **🎯 Quoted Identifier Handling**: Control how fields are quoted in CSV output
+- **💾 Persistent Settings**: User preferences automatically saved and restored between sessions
 
 ### 🎨 **User Experience**
 - **🖥️ Beautiful GUI**: Clean, modern interface built with tkinter
 - **📂 Easy File Selection**: Drag, drop, or browse for files
 - **📁 Custom Output Directory**: Choose where your split files go
-- **🎛️ Interactive Column Selector**: Intuitive two-panel interface for column management
-- **📋 Menu System**: File and Help menus with keyboard shortcuts
+- **🎛️ Interactive Column Manager**: Intuitive two-panel interface for column selection, exclusion, and renaming with reset functionality
+- **⚙️ Settings Menu**: Persistent user preferences for directory opening, logging, and header retention
+- **📋 Menu System**: File, Settings, and Help menus with keyboard shortcuts
 - **🚀 Threaded Processing**: Non-blocking UI during file operations
 - **📊 Real-time Statistics**: Live dashboard showing progress, file count, and processing stats
 - **🎯 Progress Tracking**: Visual progress bar with percentage completion
-- **🔄 Reset Functionality**: Clear all statistics and Split Settings to start fresh
-- **⌨️ Enhanced Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help
+- **🔄 Reset Functionality**: Clear all statistics and Split Settings to start fresh with one-click reset
+- **⌨️ Enhanced Keyboard Shortcuts**: Ctrl+Q to quit, Ctrl+D for help, Ctrl+R to clear inputs
 - **🎨 Visual Feedback**: Color-coded progress indicators for success/failure
 - **📋 Enhanced Logging**: Comprehensive logs with file details, column selection, and validation results
 
@@ -44,14 +46,14 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **🗂️ JSON Files** (`.json`) - with memory-efficient processing and flattening support
 
 ### 🌍 **Cross-Platform**
-- ✅ **Windows** (with automatic folder opening)
-- ✅ **macOS** (native support)
-- ✅ **Linux** (full compatibility)
+- ✅ **Windows** (with automatic folder opening and AppData config storage)
+- ✅ **macOS** (native support with Application Support config storage)
+- ✅ **Linux** (full compatibility with ~/.config storage)
 
 ### 🔧 **Advanced Features**
 - **🧠 Memory Efficient**: Processes files line-by-line for large datasets
 - **📋 Header Preservation**: Maintains headers in all split files (CSV/TXT/DAT)
-- **🎛️ Smart Column Filtering**: Remove unwanted columns to reduce file sizes
+- **🎛️ Smart Column Filtering & Renaming**: Remove unwanted columns and rename them for cleaner output
 - **🌐 UTF-8 Support**: Full Unicode character support
 - **⚡ Smart JSON Processing**: Efficient size estimation for JSON files with nested object flattening
 - **📊 Detailed Statistics**: Track total rows, processed rows, current file, and file count
@@ -59,6 +61,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **📝 Operation Logging**: Optional detailed logs with timestamps, column selection, and validation
 - **🎯 Precise Splitting**: Accurate size and row count splitting algorithms
 - **🔄 Format Conversion**: Convert between different file formats during splitting (e.g., JSON to CSV)
+- **💾 Configuration Persistence**: Settings automatically saved to OS-appropriate locations (config.json)
 
 ---
 
@@ -116,19 +119,20 @@ Choose your splitting method:
 - **📊 By Rows**: Enter the maximum number of rows per file
 - **📂 By Number of Files**: Enter the maximum number files for split
 
-### Step 4: 🎛️ Select Columns (Optional)
-Click **Select Columns...** to choose which columns to include in your split files:
+### Step 4: 🎛️ Modify Columns (Optional)
+Click **Modify Columns...** to customize your output:
 - **🔄 Two-Panel Interface**: Move columns between "Excluded" and "Included" lists
+- **✏️ Column Renaming**: Select any included column and click "Rename" to change its output name
 - **➡️ Individual Control**: Use arrow buttons to move selected columns
 - **🔄 Bulk Actions**: Include All or Exclude All with one click
+- **🔄 Reset Option**: One-click reset to restore all columns and original names
 - **💡 Smart Defaults**: All columns are included by default
 
 ### Step 5: 🔧 Fine-tune (Optional)
-- **📋 Header Control**: Toggle "Retain Header" to include/exclude header rows
+- **⚙️ Settings Menu**: Access persistent preferences for directory opening, logging, and header retention
 - **Delimiter Settings**: Let the app auto-detect or specify your own (CSV/TXT/DAT only)
 - **Output Format**: Choose between CSV, TXT, DAT, or JSON output
-- **🎯 Wuoted Identifier Handling**: Control field quoting behavior for CSV output
-- **📝 Logging**: Enable/disable detailed operation logs
+- **🎯 Quoted Identifier Handling**: Control field quoting behavior for CSV output
 
 ### Step 6: ✂️ Split!
 Click **Run** and watch the real-time progress! ✨
@@ -137,13 +141,14 @@ Click **Run** and watch the real-time progress! ✨
 - **Live Statistics**: Watch total rows, processed rows, current file, and file count
 - **Progress Bar**: Visual indicator with percentage completion
 - **Cancel Anytime**: Stop the operation if needed - partial files are preserved
-- **Reset**: Clear all statistics and Split Settings
+- **Reset**: Clear all statistics and Split Settings with **File → Clear Inputs**
 
 ---
 
 ### Keyboard Shortcuts
 - **Ctrl+Q**: Quick exit
 - **Ctrl+D**: Open documentation/help
+- **Ctrl+R**: Clear inputs and reset
 
 ---
 

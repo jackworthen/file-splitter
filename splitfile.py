@@ -170,7 +170,7 @@ class FileSplitterApp:
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
         
-        self.root.geometry("450x750")  # Increased height slightly for new button
+        self.root.geometry("450x720")  # Reduced height since we removed checkboxes
         self.root.resizable(False, False)
         
         # Configure style
@@ -259,10 +259,20 @@ class FileSplitterApp:
     def create_menu(self):
         menubar = Menu(self.root)
 
+        # File menu
         file_menu = Menu(menubar, tearoff=0)
         file_menu.add_command(label="Exit", command=self.root.quit, accelerator="Ctrl+Q")
         menubar.add_cascade(label="File", menu=file_menu)
 
+        # Settings menu (NEW)
+        settings_menu = Menu(menubar, tearoff=0)
+        settings_menu.add_checkbutton(label="Open Directory After Split", 
+                                    variable=self.open_dir_after_split)
+        settings_menu.add_checkbutton(label="Enable Validation Log", 
+                                    variable=self.create_log)
+        menubar.add_cascade(label="Settings", menu=settings_menu)
+
+        # Help menu
         help_menu = Menu(menubar, tearoff=0)
         help_menu.add_command(label="Documentation", command=self.open_help, accelerator="Ctrl+D")
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -301,8 +311,9 @@ class FileSplitterApp:
         self.output_browse_button = ttk.Button(output_frame, text="Browse", command=self.select_output_directory, state="disabled")
         self.output_browse_button.grid(row=0, column=1, pady=5)
         
-        ttk.Checkbutton(output_frame, text="Open Directory After Split", variable=self.open_dir_after_split).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
-        ttk.Checkbutton(output_frame, text="Enable Validation Log", variable=self.create_log).grid(row=2, column=0, columnspan=2, pady=5, sticky="w")
+        # REMOVED: The two checkbuttons that were here (Open Directory After Split and Enable Validation Log)
+        # They are now in the Settings menu
+        
         output_frame.columnconfigure(0, weight=1)
 
         # Split Settings Section

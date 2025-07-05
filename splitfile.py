@@ -18,19 +18,23 @@ class ColumnSelectionWindow:
         self.result = None
         self.result_renames = None
         
+        # Store original state for reset functionality
+        self.original_selected_columns = selected_columns.copy()
+        self.original_column_renames = column_renames.copy() if column_renames else {}
+        
         # Create window
         self.window = tk.Toplevel(parent)
         self.window.title("Column Filter")
-        self.window.geometry("650x450")
+        self.window.geometry("500x450")
         self.window.resizable(True, True)
         self.window.transient(parent)
         self.window.grab_set()
         
         # Center the window
         self.window.update_idletasks()
-        x = (self.window.winfo_screenwidth() // 2) - (650 // 2)
+        x = (self.window.winfo_screenwidth() // 2) - (500 // 2)
         y = (self.window.winfo_screenheight() // 2) - (450 // 2)
-        self.window.geometry(f"650x450+{x}+{y}")
+        self.window.geometry(f"500x450+{x}+{y}")
         
         self.create_widgets()
         self.populate_lists()
@@ -41,14 +45,9 @@ class ColumnSelectionWindow:
         self.window.columnconfigure(0, weight=1)
         self.window.rowconfigure(0, weight=1)
         
-        # Title
-        title_label = ttk.Label(main_frame, text="Select which columns to include in split files:", 
-                               font=("Segoe UI", 10, "bold"))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 15), sticky="w")
-        
         # Left side - Excluded columns
         excluded_frame = ttk.LabelFrame(main_frame, text="Excluded Columns", padding=10)
-        excluded_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 5))
+        excluded_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         
         self.excluded_listbox = tk.Listbox(excluded_frame, selectmode=tk.EXTENDED)
         excluded_scrollbar = ttk.Scrollbar(excluded_frame, orient="vertical", command=self.excluded_listbox.yview)
@@ -61,7 +60,7 @@ class ColumnSelectionWindow:
         
         # Center buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=1, column=1, sticky="ns", padx=10)
+        button_frame.grid(row=0, column=1, sticky="ns", padx=10)
         
         # Add some vertical spacing
         ttk.Label(button_frame, text="").grid(row=0, column=0, pady=20)
@@ -88,7 +87,7 @@ class ColumnSelectionWindow:
         
         # Right side - Included columns
         included_frame = ttk.LabelFrame(main_frame, text="Included Columns", padding=10)
-        included_frame.grid(row=1, column=2, sticky="nsew", padx=(5, 0))
+        included_frame.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
         
         self.included_listbox = tk.Listbox(included_frame, selectmode=tk.EXTENDED)
         included_scrollbar = ttk.Scrollbar(included_frame, orient="vertical", command=self.included_listbox.yview)
@@ -104,16 +103,57 @@ class ColumnSelectionWindow:
         
         # Bottom buttons
         bottom_frame = ttk.Frame(main_frame)
-        bottom_frame.grid(row=2, column=0, columnspan=3, pady=(15, 0), sticky="ew")
+        bottom_frame.grid(row=1, column=0, columnspan=3, pady=(15, 0), sticky="ew")
         
-        ttk.Button(bottom_frame, text="Save", command=self.ok_clicked).grid(row=0, column=0, padx=(0, 10))
-        ttk.Button(bottom_frame, text="Cancel", command=self.cancel_clicked).grid(row=0, column=1)
+        # Reset button on the left
+        self.reset_button = ttk.Button(bottom_frame, text="Reset", command=self.reset_to_defaults, state="disabled")
+        self.reset_button.pack(side="left")
+        
+        # Save and Cancel buttons on the right
+        right_buttons = ttk.Frame(bottom_frame)
+        right_buttons.pack(side="right")
+        
+        ttk.Button(right_buttons, text="Save", command=self.ok_clicked).pack(side="left", padx=(0, 10))
+        ttk.Button(right_buttons, text="Cancel", command=self.cancel_clicked).pack(side="left")
         
         # Configure grid weights
         main_frame.columnconfigure(0, weight=1)
         main_frame.columnconfigure(2, weight=1)
-        main_frame.rowconfigure(1, weight=1)
+        main_frame.rowconfigure(0, weight=1)
         
+    def has_changes(self):
+        """Check if any changes have been made from the original state"""
+        # Check if selected columns have changed
+        if set(self.selected_columns) != set(self.original_selected_columns):
+            return True
+        
+        # Check if any columns have been renamed
+        if self.column_renames != self.original_column_renames:
+            return True
+            
+        return False
+    
+    def update_reset_button_state(self):
+        """Enable or disable the reset button based on whether changes have been made"""
+        if self.has_changes():
+            self.reset_button.config(state="normal")
+        else:
+            self.reset_button.config(state="disabled")
+    
+    def reset_to_defaults(self):
+        """Reset the dialog to its default state"""
+        # Reset selected columns to original state
+        self.selected_columns = self.original_selected_columns.copy()
+        
+        # Clear all column renames
+        self.column_renames = self.original_column_renames.copy()
+        
+        # Refresh the display
+        self.populate_lists()
+        
+        # Update button states
+        self.update_reset_button_state()
+
     def on_included_selection_change(self, event):
         """Handle selection change in the included columns listbox"""
         selected_indices = self.included_listbox.curselection()
@@ -144,6 +184,9 @@ class ColumnSelectionWindow:
         
         # Reset rename button state since selection is cleared
         self.rename_button.config(state="disabled")
+        
+        # Update reset button state
+        self.update_reset_button_state()
     
     def get_original_column_name(self, display_name):
         """Get the original column name from a display name"""
@@ -201,6 +244,8 @@ class ColumnSelectionWindow:
                     self.included_listbox.selection_set(i)
                     self.rename_button.config(state="normal")
                     break
+            
+            # Update reset button state is called automatically by populate_lists()
 
     def show_rename_dialog(self, current_name):
         """Show a custom rename dialog with better sizing"""
@@ -573,7 +618,7 @@ class FileSplitterApp:
         button_frame = ttk.Frame(settings_frame)
         button_frame.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="w")
         
-        self.column_select_button = ttk.Button(button_frame, text="Select Columns...", 
+        self.column_select_button = ttk.Button(button_frame, text="Modify Columns...", 
                                              command=self.open_column_selection, state="disabled")
         self.column_select_button.pack(side="left")
         

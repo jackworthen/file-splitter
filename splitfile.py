@@ -170,7 +170,7 @@ class FileSplitterApp:
         except Exception as e:
             print(f"Warning: Could not load icon. {e}")
         
-        self.root.geometry("450x720")  # Reduced height since we removed checkboxes
+        self.root.geometry("450x700")  # Further reduced height since we removed another checkbox
         self.root.resizable(False, False)
         
         # Configure style
@@ -261,6 +261,8 @@ class FileSplitterApp:
 
         # File menu
         file_menu = Menu(menubar, tearoff=0)
+        file_menu.add_command(label="Clear Inputs", command=self.reset_stats_and_progress, accelerator="Ctrl+R")
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit, accelerator="Ctrl+Q")
         menubar.add_cascade(label="File", menu=file_menu)
 
@@ -270,6 +272,8 @@ class FileSplitterApp:
                                     variable=self.open_dir_after_split)
         settings_menu.add_checkbutton(label="Enable Validation Log", 
                                     variable=self.create_log)
+        settings_menu.add_checkbutton(label="Retain Header", 
+                                    variable=self.retain_header)
         menubar.add_cascade(label="Settings", menu=settings_menu)
 
         # Help menu
@@ -283,6 +287,8 @@ class FileSplitterApp:
         """Set up keyboard shortcuts"""
         self.root.bind('<Control-q>', lambda e: self.root.quit())
         self.root.bind('<Control-Q>', lambda e: self.root.quit())
+        self.root.bind('<Control-r>', lambda e: self.reset_stats_and_progress())
+        self.root.bind('<Control-R>', lambda e: self.reset_stats_and_progress())
         self.root.bind('<Control-d>', lambda e: self.open_help())
         self.root.bind('<Control-D>', lambda e: self.open_help())
 
@@ -320,17 +326,13 @@ class FileSplitterApp:
         settings_frame = ttk.LabelFrame(main_frame, text="Split Settings", padding=10, style="Bold.TLabelframe")
         settings_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="ew")
         
-        # Column Selection Button and Header Retention Checkbox - row 0
-        button_header_frame = ttk.Frame(settings_frame)
-        button_header_frame.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="w")
+        # Column Selection Button - row 0
+        button_frame = ttk.Frame(settings_frame)
+        button_frame.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="w")
         
-        self.column_select_button = ttk.Button(button_header_frame, text="Select Columns...", 
+        self.column_select_button = ttk.Button(button_frame, text="Select Columns...", 
                                              command=self.open_column_selection, state="disabled")
         self.column_select_button.pack(side="left")
-        
-        self.retain_header_checkbox = ttk.Checkbutton(button_header_frame, text="Retain Header", 
-                                                     variable=self.retain_header, state="disabled")
-        self.retain_header_checkbox.pack(side="left", padx=(10, 0))
         
         # Split mode selection - moved to row 1
         split_mode_frame = ttk.Frame(settings_frame)
@@ -668,15 +670,13 @@ class FileSplitterApp:
             # Output is JSON - disable delimiter options (JSON doesn't use delimiters)
             self.use_custom_delim.set(False)
             self.delim_checkbox.state(["disabled"])
-            self.retain_header_checkbox.state(["disabled"])  # Header doesn't apply to JSON output
             self.toggle_delim_fields()
         else:
-            # Output is not JSON - enable delimiter and header options if file is selected
+            # Output is not JSON - enable delimiter options if file is selected
             if self.input_file.get():
                 # Enable delimiter options for delimited output formats (CSV, TXT, DAT)
                 # regardless of input format (CSV, TXT, DAT, or JSON)
                 self.delim_checkbox.state(["!disabled"])
-                self.retain_header_checkbox.state(["!disabled"])
             # If no file selected, keep everything disabled
         
         # Update quote mode state whenever file type changes
@@ -1483,7 +1483,6 @@ class FileSplitterApp:
             # Disable buttons when no file selected
             self.output_browse_button.config(state="disabled")
             self.column_select_button.config(state="disabled")
-            self.retain_header_checkbox.state(["disabled"])  # NEW: Disable when no file
             self.split_value_entry.config(state="disabled")  # Disable split value input
             self.output_dir.set("")  # Clear output directory
             
@@ -1512,15 +1511,13 @@ class FileSplitterApp:
             self.column_select_button.config(state="normal")
             self.split_value_entry.config(state="normal")  # Enable split value input
             
-            # Enable delimiter and header options based on OUTPUT format
+            # Enable delimiter options based on OUTPUT format
             if self.file_type.get() != ".json":
                 # Output format uses delimiters - enable delimiter options regardless of input format
                 self.delim_checkbox.state(["!disabled"])
-                self.retain_header_checkbox.state(["!disabled"])
             else:
-                # Output is JSON - disable delimiter and header options
+                # Output is JSON - disable delimiter options
                 self.delim_checkbox.state(["disabled"])
-                self.retain_header_checkbox.state(["disabled"])
                     
             # Clear previous stats when new file selected
             self.total_rows.set("")

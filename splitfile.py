@@ -1620,7 +1620,7 @@ class FileSplitterApp:
             log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
             log_file.write(f"Operation cancelled {cancel_phase}\n")
             log_file.write(f"Total Data Rows Processed: {input_rows:,}\n")
-            log_file.write(f"Partial Parts Created: {len(per_file_row_counts)}\n")
+            log_file.write(f"Partial Files Created: {len(per_file_row_counts)}\n")
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
@@ -1685,7 +1685,7 @@ class FileSplitterApp:
                 part_filename = os.path.join(output_dir, f"{base_filename}_{i+1}{file_extension}")
                 part_size = os.path.getsize(part_filename)
                 row_count = per_file_row_counts[i]
-                log_file.write(f"Part {i+1}: {row_count} data rows, {part_size:,} bytes\n")
+                log_file.write(f"File {i+1}: {row_count} data rows, {part_size:,} bytes\n")
 
             log_file.write(f"\nTotal Data Rows in Split Files: {output_data_row_count:,}\n")
             if input_data_row_count == output_data_row_count:

@@ -1663,7 +1663,7 @@ class FileSplitterApp:
             log_file.write(f"Input File: {input_file}\n")
             log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
             log_file.write(f"Total Data Rows in Input File: {input_data_row_count:,}\n")
-            log_file.write(f"Total Parts Created: {len(per_file_row_counts)}\n")  # FIXED: Use actual count
+            log_file.write(f"Total Files Created: {len(per_file_row_counts)}\n")  # FIXED: Use actual count
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")

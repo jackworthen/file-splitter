@@ -1663,7 +1663,7 @@ class FileSplitterApp:
             log_file.write(f"Input File: {input_file}\n")
             log_file.write(f"Input File Size: {input_file_size:,} bytes\n")
             log_file.write(f"Total Data Rows in Input File: {input_data_row_count:,}\n")
-            log_file.write(f"Total Parts Created: {part_num}\n")
+            log_file.write(f"Total Parts Created: {len(per_file_row_counts)}\n")  # FIXED: Use actual count
             log_file.write(f"Output Format: {file_extension}\n")
             if file_extension != ".json":
                 log_file.write(f"Delimiter Used: '{custom_delimiter}'\n")
@@ -1680,7 +1680,8 @@ class FileSplitterApp:
                 log_file.write(f"All Columns Included: {len(self.available_columns)}\n")
             log_file.write(f"\n")
 
-            for i in range(part_num):
+            # FIXED: Use len(per_file_row_counts) instead of part_num
+            for i in range(len(per_file_row_counts)):
                 part_filename = os.path.join(output_dir, f"{base_filename}_{i+1}{file_extension}")
                 part_size = os.path.getsize(part_filename)
                 row_count = per_file_row_counts[i]

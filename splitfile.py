@@ -556,11 +556,11 @@ class FileSplitterApp:
 
         # Settings menu (NEW)
         settings_menu = Menu(menubar, tearoff=0)
-        settings_menu.add_checkbutton(label="Open Directory After Split", 
+        settings_menu.add_checkbutton(label="Open Output Directory", 
                                     variable=self.open_dir_after_split)
         settings_menu.add_checkbutton(label="Enable Validation Log", 
                                     variable=self.create_log)
-        settings_menu.add_checkbutton(label="Retain Header", 
+        settings_menu.add_checkbutton(label="Retain Headers", 
                                     variable=self.retain_header)
         menubar.add_cascade(label="Settings", menu=settings_menu)
 

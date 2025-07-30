@@ -25,7 +25,7 @@ class ColumnSelectionWindow:
         # Create window
         self.window = tk.Toplevel(parent)
         self.window.title("Column Filter")
-        self.window.geometry("500x450")
+        self.window.geometry("500x370")
         self.window.resizable(True, True)
         self.window.transient(parent)
         self.window.grab_set()
@@ -34,7 +34,7 @@ class ColumnSelectionWindow:
         self.window.update_idletasks()
         x = (self.window.winfo_screenwidth() // 2) - (500 // 2)
         y = (self.window.winfo_screenheight() // 2) - (450 // 2)
-        self.window.geometry(f"500x450+{x}+{y}")
+        self.window.geometry(f"500x370+{x}+{y}")
         
         self.create_widgets()
         self.populate_lists()

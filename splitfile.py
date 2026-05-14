@@ -370,14 +370,12 @@ class FileSplitterApp:
         self.root = root
         self.root.title("File Splitter Pro")
 
-        try:
-            icon_path = os.path.join(os.path.dirname(__file__), "filesplit_icon.ico")
-            self.root.iconbitmap(default=icon_path)
-        except Exception as e:
-            print(f"Warning: Could not load icon. {e}")
+        self.root.geometry("550x700") # Initial width, height will be adjusted after widgets are created
+        self.root.resizable(True, True)
         
-        self.root.geometry("450x700")  # Further reduced height since we removed another checkbox
-        self.root.resizable(False, False)
+        # Configure root to be responsive
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
         
         # Configure style
         self.setup_styles()
@@ -435,6 +433,10 @@ class FileSplitterApp:
         
         # Set up keyboard shortcuts
         self.setup_keyboard_shortcuts()
+
+        # Auto-adjust height to fit widgets
+        self.root.update_idletasks()
+        self.root.geometry(f"550x{self.root.winfo_reqheight()}")
 
     def get_config_dir(self):
         """Get the appropriate configuration directory for the current OS"""

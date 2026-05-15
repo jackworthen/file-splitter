@@ -736,7 +736,7 @@ class FileSplitterApp:
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=5, column=0, columnspan=3, pady=(0, 10))
         
-        self.button_start = ttk.Button(button_frame, text="Run", command=self.start_threaded_split)
+        self.button_start = ttk.Button(button_frame, text="Run", command=self.start_threaded_split, state=tk.DISABLED)
         self.button_start.grid(row=0, column=0, padx=(0, 10))
         
         self.button_cancel = ttk.Button(button_frame, text="Cancel", command=self.cancel_operation, state="disabled")
@@ -1736,8 +1736,9 @@ class FileSplitterApp:
 
     def reset_ui(self):
         self.is_running = False
-        self.button_start.config(state=tk.NORMAL)
         self.button_cancel.config(state=tk.DISABLED)
+        # Keep button_start DISABLED after completion per user preference
+        # It will be re-enabled only after a Reset and new file selection
         # Keep progress bar and percentage visible after completion
 
     def reset_stats_and_progress(self):
@@ -1792,6 +1793,7 @@ class FileSplitterApp:
     def on_input_file_change(self, *args):
         if not self.input_file.get():
             # Disable buttons when no file selected
+            self.button_start.config(state=tk.DISABLED)
             self.output_browse_button.config(state="disabled")
             self.column_select_button.config(state="disabled")
             self.split_value_entry.config(state="disabled")  # Disable split value input
@@ -1819,6 +1821,7 @@ class FileSplitterApp:
             self.clear_field_error(self.input_file_entry)
             
             # Enable buttons when file is selected
+            self.button_start.config(state=tk.NORMAL)
             self.output_browse_button.config(state="normal")
             self.column_select_button.config(state="normal")
             self.split_value_entry.config(state="normal")  # Enable split value input

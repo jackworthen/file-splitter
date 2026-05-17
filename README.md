@@ -15,7 +15,7 @@ Ever had a massive CSV file that's too big to open in Excel? 📊 Or needed to b
 - **📏 Split by Size**: Break files into chunks of specified megabytes
 - **📊 Split by Rows**: Divide files by exact row count
 - **📂 Split by Number of Files**: Split data into a certain number of files
-- **🔧 Smart Delimiter Detection**: Automatically detects CSV delimiters
+- **🔧 Smart Delimiter Detection**: Automatically detects delimiters
 - **⚙️ Custom Delimiters**: Use your own delimiter for maximum flexibility
 - **🎛️ Column Selection & Renaming**: Choose which columns to include/exclude and rename them for better output
 - **✅ Row Count Validation**: Automatic verification that input and output row counts match
